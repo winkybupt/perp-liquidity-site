@@ -15,6 +15,16 @@
                        depth1pct_usd: '±1%', depth2pct_usd: '±2%',
                        depth_l3_usd: '前3档', depth_l25_usd: '前25档' };
 
+  APP.beijingTs = function (ts) {
+    // 'YYYY-MM-DDTHH:00'(UTC)→ 'YYYY-MM-DD HH:00'(UTC+8,北京无夏令时)
+    var ms = Date.UTC(+ts.slice(0, 4), +ts.slice(5, 7) - 1,
+                      +ts.slice(8, 10), +ts.slice(11, 13)) + 8 * 3600 * 1000;
+    var d = new Date(ms);
+    function p(n) { return n < 10 ? '0' + n : '' + n; }
+    return d.getUTCFullYear() + '-' + p(d.getUTCMonth() + 1) + '-' +
+           p(d.getUTCDate()) + ' ' + p(d.getUTCHours()) + ':00';
+  };
+
   APP.esc = function (s) {  // 数据来自交易所 API,innerHTML 拼接前必须转义
     return String(s === null || s === undefined ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

@@ -29,7 +29,7 @@
         ? (st.selectedDate
            ? '当前查看:' + st.selectedDate + '(最新 ' + meta.latest_date + ')'
            : '最新快照日(UTC):' + meta.latest_date
-             + (snapTs ? ' · 最新时点 ' + snapTs.replace('T', ' ') + ' UTC' : ''))
+             + (snapTs ? ' · 最新时点 ' + APP.beijingTs(snapTs) + '(北京)' : ''))
         : '暂无数据,请先运行 run_daily.py';
     var chips = document.getElementById('status-chips');
     chips.innerHTML = '';
