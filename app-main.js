@@ -124,7 +124,9 @@
       delete pendingDays[date];
       dayCache[date] = { date: date, perp: [], spot: [], failed: true };
       cleanup();
-      renderAll();
+      // 只在失败片仍是当前所选日时才全页重渲——迟到的旧日期失败
+      // 不该重置用户已展开的表格交互态
+      if (st.selectedDate === date) renderAll();
       refreshModalHour();
     }
     tag.onload = function () { setTimeout(function () { fail(); cleanup(); }, 100); };

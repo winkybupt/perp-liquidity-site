@@ -62,7 +62,13 @@
     var labels = grid.map(shortTs);
     var oiBox = document.getElementById('intraday-oi-box');
     if (st.hasOi) {
+      var wasHidden = oiBox.hidden;
       oiBox.hidden = false;
+      // 隐藏期间窗口 resize 会让画布记住 fallback 尺寸(实测卡 100px 宽),
+      // unhide 后必须补一次 resize(与弹窗小时图同式)
+      if (wasHidden) {
+        setTimeout(function () { oiChart.resize(); }, 0);
+      }
       oiChart.setOption({
         backgroundColor: APP.darkTheme.backgroundColor,
         textStyle: APP.darkTheme.textStyle,
@@ -120,6 +126,7 @@
     if (st.hasOi && pts) {
       oiLine = hours.map(function () { return null; });
       pts.forEach(function (p) {
+        if (p.ts.slice(0, 10) !== slice.date) return;  // 异日点防错标 24h
         var idx = parseInt(p.ts.slice(11, 13), 10);
         oiLine[idx] = p.oi;
       });
