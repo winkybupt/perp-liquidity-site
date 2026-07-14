@@ -27,6 +27,7 @@
   var modalChart = null;
 
   function renderAll() {
+    APP.renderFooterMeta(st);
     APP.renderHeader(st);
     APP.renderCards(st);
     APP.renderTotalChart(st, totalChart);
@@ -122,18 +123,6 @@
     totalChart.resize(); shareChart.resize();
     if (modalChart) modalChart.resize();
   });
-
-  // ---- 页脚 ----
-  var warnBox = document.getElementById('warnings');
-  var meta = st.block().meta;
-  (meta.warnings || []).forEach(function (w) {
-    var p = document.createElement('p');
-    p.className = 'warn-line';
-    p.textContent = '⚠ ' + w;
-    warnBox.appendChild(p);
-  });
-  document.getElementById('generated-at').textContent =
-    meta.generated_at ? '数据生成时间:' + meta.generated_at : '';
 
   renderAll();
 })();

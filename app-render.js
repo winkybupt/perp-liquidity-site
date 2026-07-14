@@ -152,15 +152,19 @@
   };
 
   APP.renderTickerTable = function (st) {
+    function arrow(key) {
+      return st.sortKey === key ? (st.sortDesc ? ' ▾' : ' ▴') : '';
+    }
     var thead = document.querySelector('#ticker-table thead');
     thead.innerHTML = '<tr><th></th>' +
-      '<th data-sort="ticker">标的</th><th data-sort="asset_type">类型</th>' +
-      '<th class="num" data-sort="vol">24h 成交' + (st.sortKey === 'vol' ? (st.sortDesc ? ' ▾' : ' ▴') : '') + '</th>' +
-      (st.hasOi ? '<th class="num" data-sort="oi">持仓 OI' + (st.sortKey === 'oi' ? (st.sortDesc ? ' ▾' : ' ▴') : '') + '</th>' : '') +
-      '<th class="num" data-sort="n_exchanges">上架源数</th>' +
-      '<th class="num" data-sort="best_spread_bps">最优点差</th>' +
+      '<th data-sort="ticker">标的' + arrow('ticker') + '</th>' +
+      '<th data-sort="asset_type">类型' + arrow('asset_type') + '</th>' +
+      '<th class="num" data-sort="vol">24h 成交' + arrow('vol') + '</th>' +
+      (st.hasOi ? '<th class="num" data-sort="oi">持仓 OI' + arrow('oi') + '</th>' : '') +
+      '<th class="num" data-sort="n_exchanges">上架源数' + arrow('n_exchanges') + '</th>' +
+      '<th class="num" data-sort="best_spread_bps">最优点差' + arrow('best_spread_bps') + '</th>' +
       '<th class="num" data-sort="_best_depth">最优深度' + APP.DEPTH_LABELS[st.depthKey] +
-      (st.sortKey === '_best_depth' ? (st.sortDesc ? ' ▾' : ' ▴') : '') + '</th></tr>';
+      arrow('_best_depth') + '</th></tr>';
 
     var tbody = document.querySelector('#ticker-table tbody');
     var rows = st.block().latest_detail.filter(function (r) {
@@ -170,8 +174,11 @@
     }).slice().sort(function (a, b) {
       var av = st.sortKey === '_best_depth' ? APP.bestDepth(a, st.depthKey) : a[st.sortKey];
       var bv = st.sortKey === '_best_depth' ? APP.bestDepth(b, st.depthKey) : b[st.sortKey];
-      if (av === null || av === undefined) return 1;
-      if (bv === null || bv === undefined) return -1;
+      var aNull = av === null || av === undefined;
+      var bNull = bv === null || bv === undefined;
+      if (aNull && bNull) return 0;
+      if (aNull) return 1;
+      if (bNull) return -1;
       if (typeof av === 'string') return st.sortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
       return st.sortDesc ? bv - av : av - bv;
     });
@@ -201,6 +208,20 @@
         '<td class="num">' + fmtBps(r.best_spread_bps) + '</td>' +
         '<td class="num">' + fmtUsd(APP.bestDepth(r, st.depthKey)) + '</td></tr>' + subs;
     }).join('') || ('<tr><td colspan="' + colspan + '" class="na">无数据</td></tr>');
+  };
+
+  APP.renderFooterMeta = function (st) {
+    var meta = st.block().meta;
+    var warnBox = document.getElementById('warnings');
+    warnBox.innerHTML = '';
+    (meta.warnings || []).forEach(function (w) {
+      var p = document.createElement('p');
+      p.className = 'warn-line';
+      p.textContent = '⚠ ' + w;
+      warnBox.appendChild(p);
+    });
+    document.getElementById('generated-at').textContent =
+      meta.generated_at ? '数据生成时间:' + meta.generated_at : '';
   };
 
   APP.renderModalChart = function (st, chart, ticker) {
