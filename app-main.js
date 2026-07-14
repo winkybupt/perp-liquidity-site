@@ -34,11 +34,23 @@
                     overview_series: [], exchange_series: {},
                     latest_detail: [], ticker_series: {} };
     },
+    intraday: function () {   // v4 顶层块(旧 data.js 无此块时给空结构)
+      return DATA.intraday ||
+        { meta: { latest_snap_ts: null, grid_ts: [], hour_ts: [] },
+          perp: { oi_total: [], oi_by_exchange: {}, spread_by_exchange: {},
+                  vol_total: [], vol_by_exchange: {} },
+          spot: { spread_by_exchange: {}, vol_total: [],
+                  vol_by_exchange: {} } };
+    },
   };
 
   var totalChart = echarts.init(document.getElementById('chart-total'));
   var shareChart = echarts.init(document.getElementById('chart-share'));
+  var intradayOiChart = echarts.init(document.getElementById('chart-intraday-oi'));
+  var intradaySpreadChart = echarts.init(document.getElementById('chart-intraday-spread'));
   var modalChart = null;
+  var modalHourChart = null;
+  var modalTicker = null;   // 弹窗打开中的标的(切片迟到时补渲小时图)
 
   function renderAll() {
     APP.renderFooterMeta(st);
@@ -46,6 +58,7 @@
     APP.renderCards(st);
     APP.renderTotalChart(st, totalChart);
     APP.renderShareChart(st, shareChart);
+    APP.renderIntradayPanel(st, intradayOiChart, intradaySpreadChart);
     APP.renderExchangeTable(st);
     APP.renderTickerTable(st);
   }
@@ -68,25 +81,38 @@
     datePick.max = allDates[allDates.length - 1];
     datePick.value = allDates[allDates.length - 1];
   }
+  function modalDate() {   // 弹窗小时图取数日:所选日,最新日兜底
+    return st.selectedDate || allDates[allDates.length - 1] || null;
+  }
+  function refreshModalHour() {
+    if (!modalTicker) return;
+    var d = modalDate();
+    var slice = d ? dayCache[d] : null;
+    if (!slice || slice.failed) {
+      document.getElementById('modal-hour-box').hidden = true;
+      return;
+    }
+    if (!modalHourChart) {
+      modalHourChart = echarts.init(document.getElementById('modal-hour-chart'));
+    }
+    if (APP.renderModalHour(st, modalHourChart, modalTicker, slice)) {
+      setTimeout(function () { modalHourChart.resize(); }, 0);
+    }
+  }
   window.__PERP_DAY_CB = function (detail) {
     dayCache[detail.date] = detail;
     delete pendingDays[detail.date];
     if (st.selectedDate === detail.date) renderAll();
+    if (modalTicker && modalDate() === detail.date) refreshModalHour();
   };
-  function loadDay(date) {
-    // 正则 + available_dates 白名单双校验后才进 script src
+  function ensureSlice(date) {
+    // 正则 + available_dates 白名单双校验后才进 script src(调用方已校验,
+    // 此处再兜一道,弹窗路径同享防御)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
-        || allDates.indexOf(date) === -1) {
-      st.selectedDate = null;
-      datePick.value = allDates[allDates.length - 1] || '';  // 拒绝时回写,输入框与视图不脱钩
-      renderAll();
-      return;
-    }
-    st.selectedDate = (date === allDates[allDates.length - 1]) ? null : date;
+        || allDates.indexOf(date) === -1) return;
     var cached = dayCache[date];
     if (cached && cached.failed) { delete dayCache[date]; cached = null; }  // 失败片可重试
-    if (!st.selectedDate || cached) { renderAll(); return; }
-    if (pendingDays[date]) { renderAll(); return; }        // 在途防重复 append
+    if (cached || pendingDays[date]) return;               // 在途防重复 append
     pendingDays[date] = true;
     var tag = document.createElement('script');
     tag.src = 'days/' + date + '.js';
@@ -99,11 +125,23 @@
       dayCache[date] = { date: date, perp: [], spot: [], failed: true };
       cleanup();
       renderAll();
+      refreshModalHour();
     }
     tag.onload = function () { setTimeout(function () { fail(); cleanup(); }, 100); };
     tag.onerror = fail;
     setTimeout(fail, 4000);                               // file:// onerror 不可靠,超时兜底
     document.body.appendChild(tag);
+  }
+  function loadDay(date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
+        || allDates.indexOf(date) === -1) {
+      st.selectedDate = null;
+      datePick.value = allDates[allDates.length - 1] || '';  // 拒绝时回写,输入框与视图不脱钩
+      renderAll();
+      return;
+    }
+    st.selectedDate = (date === allDates[allDates.length - 1]) ? null : date;
+    if (st.selectedDate) ensureSlice(date);
     renderAll();                                          // pending 态渲染"加载中…"
   }
   datePick.addEventListener('change', function () { loadDay(this.value); });
@@ -183,17 +221,29 @@
     if (!modalChart) modalChart = echarts.init(document.getElementById('modal-chart'));
     APP.renderModalChart(st, modalChart, ticker);
     setTimeout(function () { modalChart.resize(); }, 0);
+    // v4:选中日(含最新日)切片有小时数据时补小时成交柱 + 4h OI 折线
+    modalTicker = ticker;
+    document.getElementById('modal-hour-box').hidden = true;
+    var d = modalDate();
+    if (d) {
+      if (dayCache[d] && !dayCache[d].failed) refreshModalHour();
+      else ensureSlice(d);
+    }
   }
-  document.getElementById('modal-close').addEventListener('click', function () {
+  function closeModal() {
     document.getElementById('modal').hidden = true;
-  });
+    modalTicker = null;
+  }
+  document.getElementById('modal-close').addEventListener('click', closeModal);
   document.getElementById('modal').addEventListener('click', function (e) {
-    if (e.target === this) this.hidden = true;
+    if (e.target === this) closeModal();
   });
 
   window.addEventListener('resize', function () {
     totalChart.resize(); shareChart.resize();
+    intradayOiChart.resize(); intradaySpreadChart.resize();
     if (modalChart) modalChart.resize();
+    if (modalHourChart) modalHourChart.resize();
   });
 
   renderAll();

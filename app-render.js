@@ -19,11 +19,13 @@
 
   APP.renderHeader = function (st) {
     var meta = st.block().meta;
+    var snapTs = (st.intraday && st.intraday().meta.latest_snap_ts) || null;
     document.getElementById('meta-line').textContent =
       meta.latest_date
         ? (st.selectedDate
            ? '当前查看:' + st.selectedDate + '(最新 ' + meta.latest_date + ')'
-           : '最新快照日(UTC):' + meta.latest_date)
+           : '最新快照日(UTC):' + meta.latest_date
+             + (snapTs ? ' · 最新时点 ' + snapTs.replace('T', ' ') + ' UTC' : ''))
         : '暂无数据,请先运行 run_daily.py';
     var chips = document.getElementById('status-chips');
     chips.innerHTML = '';
@@ -64,6 +66,7 @@
   };
 
   APP.renderTotalChart = function (st, chart) {
+    if (st.granularity === 'hour') { APP.renderHourlyTotal(st, chart); return; }
     var rows = APP.aggregate(st.block().overview_series, st.granularity,
                              st.block().meta.latest_date);
     var series = [{ name: '成交', type: 'bar',
@@ -92,6 +95,7 @@
   };
 
   APP.renderShareChart = function (st, chart) {
+    if (st.granularity === 'hour') { APP.renderHourlyShare(st, chart); return; }
     var es = st.block().exchange_series;
     var names = Object.keys(es);
     var rows = APP.aggregate(st.block().overview_series, st.granularity,
