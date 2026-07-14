@@ -5,10 +5,14 @@
   var esc = APP.esc, fmtUsd = APP.fmtUsd, fmtDelta = APP.fmtDelta,
       fmtBps = APP.fmtBps;
 
-  function axisStyle() {
+  function axisStyle(fmt) {
+    // fmt:可选 y 轴标签格式化函数。必须从这里传——调用方若自带 axisLabel
+    // 再 Object.assign 本函数返回值,axisLabel 会被整体覆盖(v3 曾因此
+    // 所有 y 轴丢 $ 格式化,v4 页面真机核对时发现)
     return { axisLine: { lineStyle: { color: '#2d333b' } },
              splitLine: { lineStyle: { color: '#21262d' } },
-             axisLabel: { color: '#8b949e' } };
+             axisLabel: fmt ? { color: '#8b949e', formatter: fmt }
+                            : { color: '#8b949e' } };
   }
   var dark = { backgroundColor: 'transparent',
     textStyle: { color: '#8b949e' },
@@ -72,12 +76,11 @@
     var series = [{ name: '成交', type: 'bar',
       data: rows.map(function (r) { return r.vol; }),
       itemStyle: { color: '#58a6ff' }, barMaxWidth: 26 }];
-    var yAxes = [Object.assign({ type: 'value', name: '成交',
-      axisLabel: { color: '#8b949e', formatter: fmtUsd } }, axisStyle())];
+    var yAxes = [Object.assign({ type: 'value', name: '成交' },
+                               axisStyle(fmtUsd))];
     if (st.hasOi) {
-      yAxes.push(Object.assign({ type: 'value', name: 'OI',
-        splitLine: { show: false },
-        axisLabel: { color: '#8b949e', formatter: fmtUsd } }, axisStyle()));
+      yAxes.push(Object.assign({ type: 'value', name: 'OI' },
+                               axisStyle(fmtUsd), { splitLine: { show: false } }));
       series.push({ name: 'OI', type: 'line', yAxisIndex: 1, smooth: true,
         data: rows.map(function (r) { return r.oi; }),
         itemStyle: { color: '#d29922' }, lineStyle: { width: 2 } });
@@ -116,8 +119,7 @@
       legend: { textStyle: { color: '#8b949e' } },
       grid: { left: 60, right: 20, top: 34, bottom: 40 },
       xAxis: Object.assign({ type: 'category', data: labels }, axisStyle()),
-      yAxis: Object.assign({ type: 'value',
-        axisLabel: { color: '#8b949e', formatter: fmtUsd } }, axisStyle()),
+      yAxis: Object.assign({ type: 'value' }, axisStyle(fmtUsd)),
       series: series,
     }, true);
   };
@@ -261,15 +263,14 @@
       grid: { left: 60, right: 60, top: 34, bottom: 40 },
       xAxis: Object.assign({ type: 'category',
         data: series.map(function (x) { return x.date; }) }, axisStyle()),
-      yAxis: [Object.assign({ type: 'value',
-        axisLabel: { color: '#8b949e', formatter: fmtUsd } }, axisStyle())],
+      yAxis: [Object.assign({ type: 'value' }, axisStyle(fmtUsd))],
       series: [{ name: '成交', type: 'bar',
         data: series.map(function (x) { return x.vol; }),
         itemStyle: { color: '#58a6ff' }, barMaxWidth: 20 }],
     };
     if (st.hasOi) {
-      opts.yAxis.push(Object.assign({ type: 'value', splitLine: { show: false },
-        axisLabel: { color: '#8b949e', formatter: fmtUsd } }, axisStyle()));
+      opts.yAxis.push(Object.assign({ type: 'value' }, axisStyle(fmtUsd),
+                                     { splitLine: { show: false } }));
       opts.series.push({ name: 'OI', type: 'line', yAxisIndex: 1, smooth: true,
         data: series.map(function (x) { return x.oi; }),
         itemStyle: { color: '#d29922' } });
