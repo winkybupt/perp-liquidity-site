@@ -6,6 +6,7 @@
   // 兼容一期单块 data.js(无 perp/spot 顶层):当作 perp 块
   if (!DATA.perp && DATA.latest_detail) DATA = { perp: DATA, spot: null };
 
+  var dayCache = {};   // date → {perp: [...], spot: [...]}(days/ 切片)
   var st = {
     mode: 'perp',
     hasOi: true,
@@ -13,6 +14,19 @@
     depthKey: 'depth1pct_usd',
     sortKey: 'vol', sortDesc: true,
     typeFilter: 'all', searchTerm: '',
+    selectedDate: null,   // null = 最新日
+    dateIndex: function (series) {
+      if (!st.selectedDate) return series.length - 1;
+      for (var i = series.length - 1; i >= 0; i--) {
+        if (series[i].date === st.selectedDate) return i;
+      }
+      return series.length - 1;
+    },
+    currentDetail: function () {
+      if (!st.selectedDate) return st.block().latest_detail;
+      var day = dayCache[st.selectedDate];
+      return day ? (day[st.mode] || []) : [];
+    },
     block: function () {
       var b = DATA[st.mode];
       return b || { meta: { latest_date: null, exchanges_status: {},
@@ -35,6 +49,45 @@
     APP.renderExchangeTable(st);
     APP.renderTickerTable(st);
   }
+
+  // ---- 日期选择(days/ 切片懒加载;file:// 用 script 注入)----
+  var datePick = document.getElementById('date-pick');
+  var allDates = (DATA.perp && DATA.perp.meta.available_dates) || [];
+  if (allDates.length) {
+    datePick.min = allDates[0];
+    datePick.max = allDates[allDates.length - 1];
+    datePick.value = allDates[allDates.length - 1];
+  }
+  window.__PERP_DAY_CB = function (detail) {
+    dayCache[detail.date] = detail;
+    if (st.selectedDate === detail.date) renderAll();
+  };
+  function loadDay(date) {
+    // 正则 + available_dates 白名单双校验后才进 script src
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
+        || allDates.indexOf(date) === -1) {
+      st.selectedDate = null;
+      renderAll();
+      return;
+    }
+    st.selectedDate = (date === allDates[allDates.length - 1]) ? null : date;
+    if (!st.selectedDate || dayCache[date]) { renderAll(); return; }
+    var tag = document.createElement('script');
+    tag.src = 'days/' + date + '.js';
+    var done = false;
+    function fail() {
+      if (done || dayCache[date]) return;
+      done = true;
+      dayCache[date] = { date: date, perp: [], spot: [] };
+      renderAll();   // 空明细 → 表格显示"无数据"
+    }
+    tag.onload = function () { setTimeout(fail, 100); };  // onload 后回调未置数=坏片
+    tag.onerror = fail;
+    setTimeout(fail, 4000);                               // file:// onerror 不可靠,超时兜底
+    document.body.appendChild(tag);
+    renderAll();
+  }
+  datePick.addEventListener('change', function () { loadDay(this.value); });
 
   // ---- Perp / 现货 tab ----
   document.getElementById('mode-tabs').addEventListener('click', function (e) {

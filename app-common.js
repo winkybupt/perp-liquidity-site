@@ -12,7 +12,8 @@
   APP.CHART_COLORS = ['#58a6ff', '#3fb950', '#d29922', '#f85149',
                       '#bc8cff', '#39c5cf', '#ff9bce', '#9ece6a'];
   APP.DEPTH_LABELS = { depth5bps_usd: '±5bp', depth10bps_usd: '±10bp',
-                       depth1pct_usd: '±1%', depth2pct_usd: '±2%' };
+                       depth1pct_usd: '±1%', depth2pct_usd: '±2%',
+                       depth_l3_usd: '前3档', depth_l25_usd: '前25档' };
 
   APP.esc = function (s) {  // 数据来自交易所 API,innerHTML 拼接前必须转义
     return String(s === null || s === undefined ? '' : s)

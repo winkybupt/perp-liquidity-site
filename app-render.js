@@ -36,11 +36,12 @@
 
   APP.renderCards = function (st) {
     var ov = st.block().overview_series;
-    var last = ov[ov.length - 1] || {};
-    var prev = ov[ov.length - 2] || {};
+    var idx = st.dateIndex(ov);
+    var last = ov[idx] || {};
+    var prev = idx > 0 ? ov[idx - 1] : {};
     var flagged = !!st.block().meta.coverage_changed;
     var cards = [
-      { label: (st.hasOi ? '全市场 24h 成交' : '现货 24h 成交'),
+      { label: (st.hasOi ? '全市场日成交' : '现货日成交'),
         value: fmtUsd(last.vol), delta: fmtDelta(last.vol, prev.vol, flagged) },
     ];
     if (st.hasOi) {
@@ -118,16 +119,21 @@
     var es = st.block().exchange_series;
     var latest = st.block().meta.latest_date;
     var thead = document.querySelector('#exchange-table thead');
-    thead.innerHTML = '<tr><th>数据源</th><th class="num">24h 成交</th>' +
+    thead.innerHTML = '<tr><th>数据源</th><th class="num">日成交</th>' +
       '<th class="num">环比</th>' +
       (st.hasOi ? '<th class="num">持仓 OI</th><th class="num">环比</th>' : '') +
       '<th class="num">标的数</th></tr>';
     var tbody = document.querySelector('#exchange-table tbody');
+    var target = st.selectedDate || latest;
     var rows = Object.keys(es).map(function (ex) {
       var s = es[ex];
-      var cur = s[s.length - 1] || {};
-      var prv = s.length > 1 ? s[s.length - 2] : {};
-      var stale = latest && cur.date !== latest;
+      var i = -1;
+      for (var k = s.length - 1; k >= 0; k--) {
+        if (s[k].date <= target) { i = k; break; }
+      }
+      var cur = i >= 0 ? s[i] : {};
+      var prv = i > 0 ? s[i - 1] : {};
+      var stale = cur.date !== target;
       return { ex: ex, cur: cur, prv: prv, stale: stale };
     }).sort(function (a, b) { return (b.cur.vol || 0) - (a.cur.vol || 0); });
     tbody.innerHTML = rows.map(function (r) {
@@ -159,7 +165,7 @@
     thead.innerHTML = '<tr><th></th>' +
       '<th data-sort="ticker">标的' + arrow('ticker') + '</th>' +
       '<th data-sort="asset_type">类型' + arrow('asset_type') + '</th>' +
-      '<th class="num" data-sort="vol">24h 成交' + arrow('vol') + '</th>' +
+      '<th class="num" data-sort="vol">日成交' + arrow('vol') + '</th>' +
       (st.hasOi ? '<th class="num" data-sort="oi">持仓 OI' + arrow('oi') + '</th>' : '') +
       '<th class="num" data-sort="n_exchanges">上架源数' + arrow('n_exchanges') + '</th>' +
       '<th class="num" data-sort="best_spread_bps">最优点差' + arrow('best_spread_bps') + '</th>' +
@@ -167,7 +173,7 @@
       arrow('_best_depth') + '</th></tr>';
 
     var tbody = document.querySelector('#ticker-table tbody');
-    var rows = st.block().latest_detail.filter(function (r) {
+    var rows = st.currentDetail().filter(function (r) {
       if (st.typeFilter !== 'all' && r.asset_type !== st.typeFilter) return false;
       if (st.searchTerm && r.ticker.indexOf(st.searchTerm.toUpperCase()) === -1) return false;
       return true;

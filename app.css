@@ -54,6 +54,9 @@ h2 { font-size: 15px; font-weight: 600; }
   border-radius: 8px; padding: 5px 10px; width: 160px; }
 #depth-scope { background: var(--bg); border: 1px solid var(--border);
   color: var(--text); border-radius: 8px; padding: 5px 8px; }
+#date-pick { background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px; padding: 5px 10px;
+  color-scheme: dark; }
 
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; white-space: nowrap; }
