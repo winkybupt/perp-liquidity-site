@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RWA 股票流动性监控</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="topbar">
+  <div>
+    <h1>RWA 股票流动性监控</h1>
+    <div class="sub" id="meta-line">加载中…</div>
+  </div>
+  <div class="toggle" id="mode-tabs">
+    <button data-mode="perp" class="active">Perp</button>
+    <button data-mode="spot">现货</button>
+  </div>
+  <div class="status-chips" id="status-chips"></div>
+</header>
+
+<section class="cards" id="cards"></section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>全市场趋势</h2>
+    <div class="toggle" id="granularity">
+      <button data-g="day" class="active">日</button>
+      <button data-g="week">周</button>
+      <button data-g="month">月</button>
+    </div>
+  </div>
+  <div class="charts-row">
+    <div class="chart-box"><div class="chart-title">总成交 / 总持仓(OI)</div><div id="chart-total" class="chart"></div></div>
+    <div class="chart-box"><div class="chart-title">成交额 · 交易所份额</div><div id="chart-share" class="chart"></div></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>数据源拆分(最新快照日)</h2></div>
+  <div class="table-wrap"><table id="exchange-table">
+    <thead></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<section class="panel">
+  <div class="panel-head">
+    <h2>标的明细(最新快照日,跨所聚合)</h2>
+    <div class="filters">
+      <input type="text" id="search" placeholder="搜索标的…">
+      <select id="depth-scope" title="深度口径">
+        <option value="depth5bps_usd">深度 ±5bp</option>
+        <option value="depth10bps_usd">深度 ±10bp</option>
+        <option value="depth1pct_usd" selected>深度 ±1%</option>
+        <option value="depth2pct_usd">深度 ±2%</option>
+      </select>
+      <div class="toggle" id="type-filter">
+        <button data-t="all" class="active">全部</button>
+        <button data-t="stock">股票</button>
+        <button data-t="etf">ETF</button>
+        <button data-t="index">指数</button>
+        <button data-t="preipo">Pre-IPO</button>
+        <button data-t="commodity">商品</button>
+      </div>
+    </div>
+  </div>
+  <div class="table-wrap"><table id="ticker-table">
+    <thead></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<div class="modal-mask" id="modal" hidden>
+  <div class="modal">
+    <div class="modal-head"><h3 id="modal-title"></h3><button id="modal-close">✕</button></div>
+    <div id="modal-chart" class="chart tall"></div>
+  </div>
+</div>
+
+<footer>
+  <div id="warnings"></div>
+  <p>口径:各所同一时刻快照的 24h 滚动窗口成交额(非自然日);快照日期为 UTC;周(ISO 周)/月聚合:成交=区间求和、OI=区间均值;深度为基准价 ±5bp/±10bp/±1%/±2% 内两侧挂单名义合计,均为可见档位内的下界口径(HL 细口径用原始精度书,宽口径可能用聚合书),窗口内无挂单显示 $0;金额单位 USD。现货 tab:Ondo(链上)为 UTC 自然日成交、无盘口字段;其余为交易所盘口 24h 滚动窗口。</p>
+  <p id="generated-at"></p>
+</footer>
+
+<script src="echarts.min.js"></script>
+<script src="data.js"></script>
+<script src="app-common.js"></script>
+<script src="app-render.js"></script>
+<script src="app-main.js"></script>
+</body>
+</html>
