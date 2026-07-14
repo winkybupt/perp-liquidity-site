@@ -20,8 +20,11 @@
   APP.renderHeader = function (st) {
     var meta = st.block().meta;
     document.getElementById('meta-line').textContent =
-      meta.latest_date ? '最新快照日(UTC):' + meta.latest_date
-                       : '暂无数据,请先运行 run_daily.py';
+      meta.latest_date
+        ? (st.selectedDate
+           ? '当前查看:' + st.selectedDate + '(最新 ' + meta.latest_date + ')'
+           : '最新快照日(UTC):' + meta.latest_date)
+        : '暂无数据,请先运行 run_daily.py';
     var chips = document.getElementById('status-chips');
     chips.innerHTML = '';
     Object.keys(meta.exchanges_status || {}).forEach(function (ex) {
@@ -131,14 +134,22 @@
       for (var k = s.length - 1; k >= 0; k--) {
         if (s[k].date <= target) { i = k; break; }
       }
-      var cur = i >= 0 ? s[i] : {};
+      var cur = i >= 0 ? s[i] : null;
       var prv = i > 0 ? s[i - 1] : {};
-      var stale = cur.date !== target;
-      return { ex: ex, cur: cur, prv: prv, stale: stale };
+      var stale = !!cur && cur.date !== target;
+      return { ex: ex, cur: cur || {}, prv: prv, stale: stale,
+               absent: !cur };
     }).sort(function (a, b) { return (b.cur.vol || 0) - (a.cur.vol || 0); });
     tbody.innerHTML = rows.map(function (r) {
+      if (r.absent) {   // 目标日之前该源完全无数据(未上线/未回填)
+        return '<tr class="main"><td>' + esc(APP.EX_NAMES[r.ex] || r.ex) +
+          ' <span class="na">该日无数据</span></td><td class="num">—</td>' +
+          '<td class="num">—</td>' +
+          (st.hasOi ? '<td class="num">—</td><td class="num">—</td>' : '') +
+          '<td class="num">—</td></tr>';
+      }
       var name = esc(APP.EX_NAMES[r.ex] || r.ex) +
-        (r.stale ? ' <span class="tag" title="当日拉取失败,显示最近成功日数据">数据: ' +
+        (r.stale ? ' <span class="tag" title="该日无此源数据,显示其最近一个有数据日">数据: ' +
                    esc(r.cur.date) + '</span>' : '');
       var cells = '<tr class="main"><td>' + name + '</td>' +
         '<td class="num">' + fmtUsd(r.cur.vol) + '</td>' +
@@ -173,7 +184,13 @@
       arrow('_best_depth') + '</th></tr>';
 
     var tbody = document.querySelector('#ticker-table tbody');
-    var rows = st.currentDetail().filter(function (r) {
+    var detail = st.currentDetail();
+    if (detail === null) {   // 切片加载中,与"真无数据"区分
+      tbody.innerHTML = '<tr><td colspan="' + (st.hasOi ? 8 : 7) +
+        '" class="na">加载中…</td></tr>';
+      return;
+    }
+    var rows = detail.filter(function (r) {
       if (st.typeFilter !== 'all' && r.asset_type !== st.typeFilter) return false;
       if (st.searchTerm && r.ticker.indexOf(st.searchTerm.toUpperCase()) === -1) return false;
       return true;

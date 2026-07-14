@@ -25,7 +25,7 @@
     currentDetail: function () {
       if (!st.selectedDate) return st.block().latest_detail;
       var day = dayCache[st.selectedDate];
-      return day ? (day[st.mode] || []) : [];
+      return day ? (day[st.mode] || []) : null;   // null = 加载中
     },
     block: function () {
       var b = DATA[st.mode];
@@ -52,7 +52,17 @@
 
   // ---- 日期选择(days/ 切片懒加载;file:// 用 script 注入)----
   var datePick = document.getElementById('date-pick');
-  var allDates = (DATA.perp && DATA.perp.meta.available_dates) || [];
+  var allDates = (function () {   // perp ∪ spot(spot-only 日期也可选)
+    var a = (DATA.perp && DATA.perp.meta.available_dates) || [];
+    var b = (DATA.spot && DATA.spot.meta.available_dates) || [];
+    var seen = {};
+    return a.concat(b).filter(function (d) {
+      if (seen[d]) return false;
+      seen[d] = true;
+      return true;
+    }).sort();
+  })();
+  var pendingDays = {};   // 在途请求防重复 append
   if (allDates.length) {
     datePick.min = allDates[0];
     datePick.max = allDates[allDates.length - 1];
@@ -60,6 +70,7 @@
   }
   window.__PERP_DAY_CB = function (detail) {
     dayCache[detail.date] = detail;
+    delete pendingDays[detail.date];
     if (st.selectedDate === detail.date) renderAll();
   };
   function loadDay(date) {
@@ -67,25 +78,33 @@
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
         || allDates.indexOf(date) === -1) {
       st.selectedDate = null;
+      datePick.value = allDates[allDates.length - 1] || '';  // 拒绝时回写,输入框与视图不脱钩
       renderAll();
       return;
     }
     st.selectedDate = (date === allDates[allDates.length - 1]) ? null : date;
-    if (!st.selectedDate || dayCache[date]) { renderAll(); return; }
+    var cached = dayCache[date];
+    if (cached && cached.failed) { delete dayCache[date]; cached = null; }  // 失败片可重试
+    if (!st.selectedDate || cached) { renderAll(); return; }
+    if (pendingDays[date]) { renderAll(); return; }        // 在途防重复 append
+    pendingDays[date] = true;
     var tag = document.createElement('script');
     tag.src = 'days/' + date + '.js';
     var done = false;
+    function cleanup() { if (tag.parentNode) tag.parentNode.removeChild(tag); }
     function fail() {
-      if (done || dayCache[date]) return;
+      if (done || dayCache[date]) { cleanup(); return; }
       done = true;
-      dayCache[date] = { date: date, perp: [], spot: [] };
-      renderAll();   // 空明细 → 表格显示"无数据"
+      delete pendingDays[date];
+      dayCache[date] = { date: date, perp: [], spot: [], failed: true };
+      cleanup();
+      renderAll();
     }
-    tag.onload = function () { setTimeout(fail, 100); };  // onload 后回调未置数=坏片
+    tag.onload = function () { setTimeout(function () { fail(); cleanup(); }, 100); };
     tag.onerror = fail;
     setTimeout(fail, 4000);                               // file:// onerror 不可靠,超时兜底
     document.body.appendChild(tag);
-    renderAll();
+    renderAll();                                          // pending 态渲染"加载中…"
   }
   datePick.addEventListener('change', function () { loadDay(this.value); });
 
