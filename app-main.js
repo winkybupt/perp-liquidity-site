@@ -54,6 +54,7 @@
 
   var totalChart = echarts.init(document.getElementById('chart-total'));
   var shareChart = echarts.init(document.getElementById('chart-share'));
+  var tradfiChart = echarts.init(document.getElementById('chart-tradfi'));
   var intradayOiChart = echarts.init(document.getElementById('chart-intraday-oi'));
   var intradaySpreadChart = echarts.init(document.getElementById('chart-intraday-spread'));
   var modalChart = null;
@@ -66,6 +67,7 @@
     APP.renderCards(st);
     APP.renderTotalChart(st, totalChart);
     APP.renderShareChart(st, shareChart);
+    APP.renderTradfiChart(st, tradfiChart);
     APP.renderIntradayPanel(st, intradayOiChart, intradaySpreadChart);
     APP.renderExchangeTable(st);
     APP.renderTickerTable(st);
@@ -272,11 +274,12 @@
   });
 
   window.addEventListener('resize', function () {
-    totalChart.resize(); shareChart.resize();
+    totalChart.resize(); shareChart.resize(); tradfiChart.resize();
     intradayOiChart.resize(); intradaySpreadChart.resize();
     if (modalChart) modalChart.resize();
     if (modalHourChart) modalHourChart.resize();
   });
 
+  APP.renderListings();   // 静态双市场面板,渲一次即可
   renderAll();
 })();

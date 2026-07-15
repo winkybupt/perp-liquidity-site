@@ -139,9 +139,17 @@
     thead.innerHTML = '<tr><th>数据源</th><th class="num">日成交</th>' +
       '<th class="num">环比</th>' +
       (st.hasOi ? '<th class="num">持仓 OI</th><th class="num">环比</th>' : '') +
+      '<th class="num" title="该所 TradFi 成交占其全市场总量(含加密)的百分比;分母来自 CoinGecko">TradFi 占比</th>' +
       '<th class="num">标的数</th></tr>';
     var tbody = document.querySelector('#exchange-table tbody');
     var target = st.selectedDate || latest;
+    var share = st.block().tradfi_share || { dates: [], by_exchange: {} };
+    var shareIdx = share.dates.indexOf(target);
+    function shareCell(ex, stale) {
+      if (stale || shareIdx === -1) return '—';
+      var v = (share.by_exchange[ex] || [])[shareIdx];
+      return (v === null || v === undefined) ? '—' : v.toFixed(2) + '%';
+    }
     var rows = Object.keys(es).map(function (ex) {
       var s = es[ex];
       var i = -1;
@@ -160,7 +168,7 @@
           ' <span class="na">该日无数据</span></td><td class="num">—</td>' +
           '<td class="num">—</td>' +
           (st.hasOi ? '<td class="num">—</td><td class="num">—</td>' : '') +
-          '<td class="num">—</td></tr>';
+          '<td class="num">—</td><td class="num">—</td></tr>';
       }
       var name = esc(APP.EX_NAMES[r.ex] || r.ex) +
         (r.stale ? ' <span class="tag" title="该日无此源数据,显示其最近一个有数据日">数据: ' +
@@ -172,7 +180,9 @@
         cells += '<td class="num">' + fmtUsd(r.cur.oi) + '</td>' +
           '<td class="num">' + (r.stale ? '—' : fmtDelta(r.cur.oi, r.prv.oi)) + '</td>';
       }
-      return cells + '<td class="num">' + (r.cur.count || 0) + '</td></tr>';
+      return cells +
+        '<td class="num">' + shareCell(r.ex, r.stale) + '</td>' +
+        '<td class="num">' + (r.cur.count || 0) + '</td></tr>';
     }).join('');
   };
 

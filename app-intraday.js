@@ -112,6 +112,58 @@
     }, true);
   };
 
+  // ---- TradFi 占比趋势(固定全窗,随 perp/spot tab)----
+  APP.renderTradfiChart = function (st, chart) {
+    var ts = st.block().tradfi_share || { dates: [], by_exchange: {} };
+    var names = Object.keys(ts.by_exchange);
+    var series = names.map(function (ex, i) {
+      return { name: APP.EX_NAMES[ex] || ex, type: 'line',
+               connectNulls: false, symbolSize: 4,
+               itemStyle: { color: APP.CHART_COLORS[i % APP.CHART_COLORS.length] },
+               data: ts.by_exchange[ex] };
+    });
+    if (ts.total && ts.total.length) {
+      series.unshift({ name: '全市场', type: 'line', connectNulls: false,
+                       symbolSize: 5, lineStyle: { width: 3 },
+                       itemStyle: { color: '#e6edf3' },
+                       data: ts.total });
+    }
+    chart.setOption({
+      backgroundColor: APP.darkTheme.backgroundColor,
+      textStyle: APP.darkTheme.textStyle,
+      tooltip: Object.assign({}, APP.darkTheme.tooltip, {
+        valueFormatter: function (v) {
+          return (v === null || v === undefined) ? '—' : v + '%';
+        } }),
+      legend: { textStyle: { color: '#8b949e' } },
+      grid: { left: 60, right: 20, top: 34, bottom: 40 },
+      xAxis: Object.assign({ type: 'category', data: ts.dates },
+                           APP.axisStyle()),
+      yAxis: Object.assign({ type: 'value' }, APP.axisStyle(
+        function (v) { return v + '%'; })),
+      series: series,
+    }, true);
+  };
+
+  // ---- 近 7 天上新(双市场合并,静态,不随 tab)----
+  APP.renderListings = function () {
+    var nl = (window.PERP_DATA || {}).new_listings || { items: [] };
+    var esc = APP.esc;
+    var tbody = document.querySelector('#listings-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = nl.items.map(function (it) {
+      return '<tr><td>' + esc(it.first_seen) + '</td>' +
+        '<td><b>' + esc(it.ticker) + '</b>' +
+        (it.is_new_global
+          ? ' <span class="tag" title="全市场首见新票">★ 新票</span>' : '') +
+        '</td>' +
+        '<td><span class="tag">' +
+        esc(APP.TYPE_NAMES[it.asset_type] || it.asset_type) + '</span></td>' +
+        '<td>' + (it.market === 'spot' ? '现货' : 'Perp') + '</td>' +
+        '<td>' + esc(APP.EX_NAMES[it.exchange] || it.exchange) + '</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="na">近 7 天无上新</td></tr>';
+  };
+
   // ---- 弹窗:该日 24 根小时成交柱 + 4h OI 折线(切片无数据则隐藏)----
   APP.renderModalHour = function (st, chart, ticker, slice) {
     var box = document.getElementById('modal-hour-box');
