@@ -46,11 +46,15 @@
                            APP.axisStyle()),
       yAxis: Object.assign({ type: 'value' }, APP.axisStyle(fmtUsd)),
       series: names.map(function (ex, i) {
-        return { name: APP.EX_NAMES[ex] || ex, type: 'line', stack: 'vol',
-                 areaStyle: { opacity: .35 }, symbol: 'none',
+        var stacked = st.shareStack !== 'line';
+        return { name: APP.EX_NAMES[ex] || ex, type: 'line',
+                 stack: stacked ? 'vol' : undefined,
+                 areaStyle: stacked ? { opacity: .35 } : undefined,
+                 symbol: 'none',
                  itemStyle: { color: APP.CHART_COLORS[i % APP.CHART_COLORS.length] },
                  data: (m.vol_by_exchange[ex] || []).map(function (v) {
-                   return v === null ? 0 : v;   // 堆叠图缺时按 0(总量图保留断点)
+                   // 补 0 是堆叠的技术需要;独立模式缺时 null 自然断线
+                   return stacked ? (v === null ? 0 : v) : v;
                  }) };
       }),
     }, true);

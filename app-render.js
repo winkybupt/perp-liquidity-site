@@ -104,14 +104,22 @@
     var rows = APP.aggregate(st.block().overview_series, st.granularity,
                              st.block().meta.latest_date);
     var labels = rows.map(function (r) { return r.label; });
+    var stacked = st.shareStack !== 'line';
     var series = names.map(function (ex, i) {
       var agg = APP.aggregate(es[ex], st.granularity, st.block().meta.latest_date);
       var byLabel = {};
       agg.forEach(function (r) { byLabel[r.label] = r.vol; });
-      return { name: APP.EX_NAMES[ex] || ex, type: 'line', stack: 'vol',
-               areaStyle: { opacity: .35 }, smooth: true, symbol: 'none',
+      return { name: APP.EX_NAMES[ex] || ex, type: 'line',
+               stack: stacked ? 'vol' : undefined,
+               areaStyle: stacked ? { opacity: .35 } : undefined,
+               smooth: true, symbol: 'none',
                itemStyle: { color: APP.CHART_COLORS[i % APP.CHART_COLORS.length] },
-               data: labels.map(function (l) { return byLabel[l] || 0; }) };
+               data: labels.map(function (l) {
+                 var v = byLabel[l];
+                 // 补 0 是堆叠的技术需要;独立模式缺数日置 null 自然断线
+                 if (stacked) return v || 0;
+                 return (v === undefined || v === null) ? null : v;
+               }) };
     });
     chart.setOption({
       backgroundColor: dark.backgroundColor, textStyle: dark.textStyle,
@@ -185,6 +193,9 @@
     function arrow(key) {
       return st.sortKey === key ? (st.sortDesc ? ' ▾' : ' ▴') : '';
     }
+    var depthTitle = live
+      ? '最新时点视图:最近一次 4 小时快照的单时点值'
+      : '日快照视图:当日各 4 小时时点的中位数(2026-07-14 前的历史日为单时点值)';
     var thead = document.querySelector('#ticker-table thead');
     thead.innerHTML = '<tr><th></th>' +
       '<th data-sort="ticker">标的' + arrow('ticker') + '</th>' +
@@ -193,8 +204,8 @@
       (live ? '24h 成交(滚动)' : '日成交') + arrow('vol') + '</th>' +
       (st.hasOi ? '<th class="num" data-sort="oi">持仓 OI' + arrow('oi') + '</th>' : '') +
       '<th class="num" data-sort="n_exchanges">上架源数' + arrow('n_exchanges') + '</th>' +
-      '<th class="num" data-sort="best_spread_bps">最优点差' + arrow('best_spread_bps') + '</th>' +
-      '<th class="num" data-sort="_best_depth">最优深度' + APP.DEPTH_LABELS[st.depthKey] +
+      '<th class="num" data-sort="best_spread_bps" title="' + depthTitle + '">最优点差' + arrow('best_spread_bps') + '</th>' +
+      '<th class="num" data-sort="_best_depth" title="' + depthTitle + '">最优深度' + APP.DEPTH_LABELS[st.depthKey] +
       arrow('_best_depth') + '</th></tr>';
 
     var tbody = document.querySelector('#ticker-table tbody');

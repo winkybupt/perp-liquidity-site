@@ -12,6 +12,7 @@
     hasOi: true,
     granularity: 'day',
     detailMode: 'day',   // 明细表:day=日快照(联动日期框)| live=最新时点(4h)
+    shareStack: 'stack', // 份额图:stack=堆叠 | line=独立折线
     depthKey: 'depth1pct_usd',
     sortKey: 'vol', sortDesc: true,
     typeFilter: 'all', searchTerm: '',
@@ -201,6 +202,17 @@
     var show = subs.length && subs[0].hidden;
     Array.prototype.forEach.call(subs, function (s) { s.hidden = !show; });
     row.querySelector('.expander').textContent = show ? '▾' : '▸';
+  });
+
+  // ---- 份额图 堆叠/独立 切换 ----
+  document.getElementById('share-mode').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    st.shareStack = btn.dataset.sm;
+    this.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('active', b === btn);
+    });
+    APP.renderShareChart(st, shareChart);
   });
 
   // ---- 明细表 日快照/最新时点 切换 ----
