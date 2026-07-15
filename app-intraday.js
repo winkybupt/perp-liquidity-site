@@ -146,22 +146,64 @@
   };
 
   // ---- 近 7 天上新(双市场合并,静态,不随 tab)----
-  APP.renderListings = function () {
+  // 按 (ticker, market) 聚合:同票多所合并一行,交易所列并列展示
+  // (各所首见日不同时以 title 提示);超过 12 行默认收起
+  var LISTINGS_COLLAPSE_AT = 12;
+  APP.renderListings = function (expanded) {
     var nl = (window.PERP_DATA || {}).new_listings || { items: [] };
     var esc = APP.esc;
     var tbody = document.querySelector('#listings-table tbody');
     if (!tbody) return;
-    tbody.innerHTML = nl.items.map(function (it) {
-      return '<tr><td>' + esc(it.first_seen) + '</td>' +
-        '<td><b>' + esc(it.ticker) + '</b>' +
-        (it.is_new_global
+    var groups = {};
+    var order = [];
+    nl.items.forEach(function (it) {
+      var key = it.ticker + '|' + it.market;
+      if (!groups[key]) {
+        groups[key] = { ticker: it.ticker, market: it.market,
+                        asset_type: it.asset_type,
+                        is_new_global: it.is_new_global,
+                        first_seen: it.first_seen, exchanges: [] };
+        order.push(key);
+      }
+      var g = groups[key];
+      if (it.first_seen < g.first_seen) g.first_seen = it.first_seen;
+      g.exchanges.push({ exchange: it.exchange, date: it.first_seen });
+    });
+    var rows = order.map(function (k) { return groups[k]; });
+    rows.sort(function (a, b) {
+      return a.first_seen === b.first_seen
+        ? (a.ticker < b.ticker ? -1 : 1)
+        : (a.first_seen < b.first_seen ? 1 : -1);
+    });
+    var shown = expanded ? rows : rows.slice(0, LISTINGS_COLLAPSE_AT);
+    var html = shown.map(function (g) {
+      var exCell = g.exchanges.map(function (e) {
+        var name = esc(APP.EX_NAMES[e.exchange] || e.exchange);
+        return e.date === g.first_seen
+          ? name
+          : '<span title="该所上架日 ' + esc(e.date) + '">' + name + '</span>';
+      }).join('、');
+      return '<tr><td>' + esc(g.first_seen) + '</td>' +
+        '<td><b>' + esc(g.ticker) + '</b>' +
+        (g.is_new_global
           ? ' <span class="tag" title="全市场首见新票">★ 新票</span>' : '') +
         '</td>' +
         '<td><span class="tag">' +
-        esc(APP.TYPE_NAMES[it.asset_type] || it.asset_type) + '</span></td>' +
-        '<td>' + (it.market === 'spot' ? '现货' : 'Perp') + '</td>' +
-        '<td>' + esc(APP.EX_NAMES[it.exchange] || it.exchange) + '</td></tr>';
+        esc(APP.TYPE_NAMES[g.asset_type] || g.asset_type) + '</span></td>' +
+        '<td>' + (g.market === 'spot' ? '现货' : 'Perp') + '</td>' +
+        '<td>' + exCell + '</td></tr>';
     }).join('') || '<tr><td colspan="5" class="na">近 7 天无上新</td></tr>';
+    if (!expanded && rows.length > LISTINGS_COLLAPSE_AT) {
+      html += '<tr><td colspan="5" class="na" style="cursor:pointer" ' +
+        'id="listings-more">展开全部 ' + rows.length + ' 项 ▾</td></tr>';
+    }
+    tbody.innerHTML = html;
+    var more = document.getElementById('listings-more');
+    if (more) {
+      more.addEventListener('click', function () {
+        APP.renderListings(true);
+      });
+    }
   };
 
   // ---- 弹窗:该日 24 根小时成交柱 + 4h OI 折线(切片无数据则隐藏)----
