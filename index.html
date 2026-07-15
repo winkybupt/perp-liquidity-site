@@ -36,8 +36,8 @@
     <div class="chart-box"><div class="chart-title">总成交 / 总持仓(OI)</div><div id="chart-total" class="chart"></div></div>
     <div class="chart-box"><div class="chart-title">成交额 · 交易所份额
       <span class="toggle inline" id="share-mode">
-        <button data-sm="stack" class="active" title="各所堆叠,看总量构成">堆叠</button>
-        <button data-sm="line" title="各所独立折线,看单所自身趋势(缺数日断线)">独立</button>
+        <button data-sm="stack" title="各所堆叠,看总量构成">堆叠</button>
+        <button data-sm="line" class="active" title="各所独立折线,看单所自身趋势(缺数日断线)">独立</button>
       </span></div><div id="chart-share" class="chart"></div></div>
   </div>
 </section>
@@ -70,9 +70,9 @@
       <select id="depth-scope" title="深度口径">
         <option value="depth5bps_usd">深度 ±5bp</option>
         <option value="depth10bps_usd">深度 ±10bp</option>
-        <option value="depth1pct_usd" selected>深度 ±1%</option>
+        <option value="depth1pct_usd">深度 ±1%</option>
         <option value="depth2pct_usd">深度 ±2%</option>
-        <option value="depth_l3_usd">深度 前3档</option>
+        <option value="depth_l3_usd" selected>深度 前3档</option>
         <option value="depth_l25_usd">深度 前25档</option>
       </select>
       <div class="toggle" id="type-filter">

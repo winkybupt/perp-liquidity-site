@@ -12,8 +12,8 @@
     hasOi: true,
     granularity: 'day',
     detailMode: 'day',   // 明细表:day=日快照(联动日期框)| live=最新时点(4h)
-    shareStack: 'stack', // 份额图:stack=堆叠 | line=独立折线
-    depthKey: 'depth1pct_usd',
+    shareStack: 'line',  // 份额图:line=独立折线(默认)| stack=堆叠
+    depthKey: 'depth_l3_usd',
     sortKey: 'vol', sortDesc: true,
     typeFilter: 'all', searchTerm: '',
     selectedDate: null,   // null = 最新日
