@@ -11,6 +11,7 @@
     mode: 'perp',
     hasOi: true,
     granularity: 'day',
+    detailMode: 'day',   // 明细表:day=日快照(联动日期框)| live=最新时点(4h)
     depthKey: 'depth1pct_usd',
     sortKey: 'vol', sortDesc: true,
     typeFilter: 'all', searchTerm: '',
@@ -23,6 +24,12 @@
       return series.length - 1;
     },
     currentDetail: function () {
+      if (st.detailMode === 'live') {
+        // 双兜底:旧 data.js 的 intraday 块可能没有 latest_detail 键,
+        // undefined 会让 renderTickerTable 直接 throw(===null 才是加载中)
+        var blk = st.intraday()[st.mode === 'spot' ? 'spot' : 'perp'] || {};
+        return blk.latest_detail || [];
+      }
       if (!st.selectedDate) return st.block().latest_detail;
       var day = dayCache[st.selectedDate];
       return day ? (day[st.mode] || []) : null;   // null = 加载中
@@ -38,9 +45,9 @@
       return DATA.intraday ||
         { meta: { latest_snap_ts: null, grid_ts: [], hour_ts: [] },
           perp: { oi_total: [], oi_by_exchange: {}, spread_by_exchange: {},
-                  vol_total: [], vol_by_exchange: {} },
+                  vol_total: [], vol_by_exchange: {}, latest_detail: [] },
           spot: { spread_by_exchange: {}, vol_total: [],
-                  vol_by_exchange: {} } };
+                  vol_by_exchange: {}, latest_detail: [] } };
     },
   };
 
@@ -194,6 +201,17 @@
     var show = subs.length && subs[0].hidden;
     Array.prototype.forEach.call(subs, function (s) { s.hidden = !show; });
     row.querySelector('.expander').textContent = show ? '▾' : '▸';
+  });
+
+  // ---- 明细表 日快照/最新时点 切换 ----
+  document.getElementById('detail-mode').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    st.detailMode = btn.dataset.dm;
+    this.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('active', b === btn);
+    });
+    APP.renderTickerTable(st);
   });
 
   // ---- 筛选/搜索/深度口径 ----

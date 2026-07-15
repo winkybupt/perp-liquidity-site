@@ -175,6 +175,13 @@
   };
 
   APP.renderTickerTable = function (st) {
+    var live = st.detailMode === 'live';
+    // 频率标签随视图联动(日快照=每日更新;最新时点=每 4 小时刷新)
+    var freqTag = document.getElementById('ticker-freq-tag');
+    if (freqTag) {
+      freqTag.textContent = live ? '每 4 小时刷新' : '每日更新';
+      freqTag.className = 'freq-tag ' + (live ? 'h4' : 'daily');
+    }
     function arrow(key) {
       return st.sortKey === key ? (st.sortDesc ? ' ▾' : ' ▴') : '';
     }
@@ -182,7 +189,8 @@
     thead.innerHTML = '<tr><th></th>' +
       '<th data-sort="ticker">标的' + arrow('ticker') + '</th>' +
       '<th data-sort="asset_type">类型' + arrow('asset_type') + '</th>' +
-      '<th class="num" data-sort="vol">日成交' + arrow('vol') + '</th>' +
+      '<th class="num" data-sort="vol">' +
+      (live ? '24h 成交(滚动)' : '日成交') + arrow('vol') + '</th>' +
       (st.hasOi ? '<th class="num" data-sort="oi">持仓 OI' + arrow('oi') + '</th>' : '') +
       '<th class="num" data-sort="n_exchanges">上架源数' + arrow('n_exchanges') + '</th>' +
       '<th class="num" data-sort="best_spread_bps">最优点差' + arrow('best_spread_bps') + '</th>' +
