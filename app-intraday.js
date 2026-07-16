@@ -176,6 +176,7 @@
         : (a.first_seen < b.first_seen ? 1 : -1);
     });
     var shown = expanded ? rows : rows.slice(0, LISTINGS_COLLAPSE_AT);
+    var notes = (window.PERP_DATA || {}).ticker_notes || {};
     var html = shown.map(function (g) {
       var exCell = g.exchanges.map(function (e) {
         var name = esc(APP.EX_NAMES[e.exchange] || e.exchange);
@@ -188,13 +189,14 @@
         (g.is_new_global
           ? ' <span class="tag" title="全市场首见新票">★ 新票</span>' : '') +
         '</td>' +
+        '<td class="note">' + esc(notes[g.ticker] || '—') + '</td>' +
         '<td><span class="tag">' +
         esc(APP.TYPE_NAMES[g.asset_type] || g.asset_type) + '</span></td>' +
         '<td>' + (g.market === 'spot' ? '现货' : 'Perp') + '</td>' +
         '<td>' + exCell + '</td></tr>';
-    }).join('') || '<tr><td colspan="5" class="na">近 7 天无上新</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="na">近 7 天无上新</td></tr>';
     if (!expanded && rows.length > LISTINGS_COLLAPSE_AT) {
-      html += '<tr><td colspan="5" class="na" style="cursor:pointer" ' +
+      html += '<tr><td colspan="6" class="na" style="cursor:pointer" ' +
         'id="listings-more">展开全部 ' + rows.length + ' 项 ▾</td></tr>';
     }
     tbody.innerHTML = html;

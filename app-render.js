@@ -257,7 +257,9 @@
       }).join('');
       var main = '<tr class="main" data-idx="' + i + '">' +
         '<td class="expander">▸</td>' +
-        '<td><span class="ticker-link" data-ticker="' + esc(r.ticker) + '">' + esc(r.ticker) + '</span></td>' +
+        '<td><span class="ticker-link" data-ticker="' + esc(r.ticker) +
+        '" title="' + esc(((window.PERP_DATA || {}).ticker_notes || {})[r.ticker] || '') +
+        '">' + esc(r.ticker) + '</span></td>' +
         '<td><span class="tag">' + esc(APP.TYPE_NAMES[r.asset_type] || r.asset_type) + '</span></td>' +
         '<td class="num">' + fmtUsd(r.vol) + '</td>';
       if (st.hasOi) main += '<td class="num">' + fmtUsd(r.oi) + '</td>';
