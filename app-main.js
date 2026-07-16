@@ -59,6 +59,7 @@
   var intradaySpreadChart = echarts.init(document.getElementById('chart-intraday-spread'));
   var modalChart = null;
   var modalHourChart = null;
+  var modalFundingChart = null;
   var modalTicker = null;   // 弹窗打开中的标的(切片迟到时补渲小时图)
 
   function renderAll() {
@@ -164,7 +165,9 @@
     if (!btn) return;
     st.mode = btn.dataset.mode;
     st.hasOi = st.mode === 'perp';
-    if (st.sortKey === 'oi' && !st.hasOi) { st.sortKey = 'vol'; st.sortDesc = true; }
+    if ((st.sortKey === 'oi' || st.sortKey === 'funding_8h') && !st.hasOi) {
+      st.sortKey = 'vol'; st.sortDesc = true;   // spot 无 OI/funding 列,排序键复位
+    }
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });
@@ -263,6 +266,19 @@
       if (dayCache[d] && !dayCache[d].failed) refreshModalHour();
       else ensureSlice(d);
     }
+    // funding-stats:费率日线(perp 专属,无数据票隐藏面板)
+    var fundingBox = document.getElementById('modal-funding-box');
+    if (st.hasOi) {
+      if (!modalFundingChart) {
+        modalFundingChart = echarts.init(
+          document.getElementById('modal-funding-chart'));
+      }
+      var hasFunding = APP.renderModalFunding(st, modalFundingChart, ticker);
+      fundingBox.hidden = !hasFunding;
+      if (hasFunding) setTimeout(function () { modalFundingChart.resize(); }, 0);
+    } else {
+      fundingBox.hidden = true;
+    }
   }
   function closeModal() {
     document.getElementById('modal').hidden = true;
@@ -278,6 +294,7 @@
     intradayOiChart.resize(); intradaySpreadChart.resize();
     if (modalChart) modalChart.resize();
     if (modalHourChart) modalHourChart.resize();
+    if (modalFundingChart) modalFundingChart.resize();
   });
 
   APP.renderListings();   // 静态双市场面板,渲一次即可

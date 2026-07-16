@@ -206,6 +206,10 @@
     var depthTitle = live
       ? '最新时点视图:最近一次 4 小时快照的单时点值'
       : '日快照视图:当日各 4 小时时点的中位数(2026-07-14 前的历史日为单时点值)';
+    var fundingTitle = (live
+      ? '最新时点视图:当期预告费率折 8 小时'
+      : '日快照视图:当日已结算费率合计÷3(=日累计折 8h 等效)') +
+      ';主行=各所中位数;正=多头付费给空头';
     var thead = document.querySelector('#ticker-table thead');
     thead.innerHTML = '<tr><th></th>' +
       '<th data-sort="ticker">标的' + arrow('ticker') + '</th>' +
@@ -216,12 +220,14 @@
       '<th class="num" data-sort="n_exchanges">上架源数' + arrow('n_exchanges') + '</th>' +
       '<th class="num" data-sort="best_spread_bps" title="' + depthTitle + '">最优点差' + arrow('best_spread_bps') + '</th>' +
       '<th class="num" data-sort="_best_depth" title="' + depthTitle + '">最优深度' + APP.DEPTH_LABELS[st.depthKey] +
-      arrow('_best_depth') + '</th></tr>';
+      arrow('_best_depth') + '</th>' +
+      (st.hasOi ? '<th class="num" data-sort="funding_8h" title="' + fundingTitle + '">Funding(折8h)' +
+      arrow('funding_8h') + '</th>' : '') + '</tr>';
 
     var tbody = document.querySelector('#ticker-table tbody');
     var detail = st.currentDetail();
     if (detail === null) {   // 切片加载中,与"真无数据"区分
-      tbody.innerHTML = '<tr><td colspan="' + (st.hasOi ? 8 : 7) +
+      tbody.innerHTML = '<tr><td colspan="' + (st.hasOi ? 9 : 7) +
         '" class="na">加载中…</td></tr>';
       return;
     }
@@ -240,7 +246,7 @@
       if (typeof av === 'string') return st.sortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
       return st.sortDesc ? bv - av : av - bv;
     });
-    var colspan = st.hasOi ? 8 : 7;
+    var colspan = st.hasOi ? 9 : 7;
     tbody.innerHTML = rows.map(function (r, i) {
       var subs = r.exchanges.map(function (e) {
         var isChain = e.exchange === 'ondo';
@@ -253,7 +259,9 @@
         if (st.hasOi) cells += '<td class="num">' + fmtUsd(e.oi) + '</td>';
         return cells + '<td></td>' +
           '<td class="num">' + fmtBps(e.spread_bps) + '</td>' +
-          '<td class="num">' + fmtUsd(e[st.depthKey]) + '</td></tr>';
+          '<td class="num">' + fmtUsd(e[st.depthKey]) + '</td>' +
+          (st.hasOi ? '<td class="num">' + APP.fmtFunding(e.funding_8h) + '</td>' : '') +
+          '</tr>';
       }).join('');
       var main = '<tr class="main" data-idx="' + i + '">' +
         '<td class="expander">▸</td>' +
@@ -266,7 +274,9 @@
       return main +
         '<td class="num">' + r.n_exchanges + '</td>' +
         '<td class="num">' + fmtBps(r.best_spread_bps) + '</td>' +
-        '<td class="num">' + fmtUsd(APP.bestDepth(r, st.depthKey)) + '</td></tr>' + subs;
+        '<td class="num">' + fmtUsd(APP.bestDepth(r, st.depthKey)) + '</td>' +
+        (st.hasOi ? '<td class="num">' + APP.fmtFunding(r.funding_8h) + '</td>' : '') +
+        '</tr>' + subs;
     }).join('') || ('<tr><td colspan="' + colspan + '" class="na">无数据</td></tr>');
   };
 
@@ -307,5 +317,32 @@
         itemStyle: { color: '#d29922' } });
     }
     chart.setOption(opts, true);
+  };
+
+  // 弹窗费率日线(funding-stats F5):每所一条,断点如实(勿 connectNulls);
+  // 数据为已结算日累计折 8h(与明细日快照视图同口径);perp 专属。
+  // 返回是否有数据(调用方据此显隐面板)
+  APP.renderModalFunding = function (st, chart, ticker) {
+    var block = st.block();
+    var dates = block.funding_dates || [];
+    var byEx = (block.funding_daily || {})[ticker];
+    if (!dates.length || !byEx) return false;
+    var exs = Object.keys(byEx).sort();
+    var fmtPct = APP.fmtFundingPct;
+    chart.setOption({
+      backgroundColor: 'transparent', textStyle: dark.textStyle,
+      tooltip: Object.assign({}, dark.tooltip, { valueFormatter: fmtPct }),
+      legend: { data: exs.map(function (ex) { return APP.EX_NAMES[ex] || ex; }),
+                textStyle: { color: '#8b949e' } },
+      grid: { left: 70, right: 24, top: 34, bottom: 40 },
+      xAxis: Object.assign({ type: 'category', data: dates }, axisStyle()),
+      yAxis: [Object.assign({ type: 'value' }, axisStyle(fmtPct))],
+      series: exs.map(function (ex, i) {
+        return { name: APP.EX_NAMES[ex] || ex, type: 'line',
+                 itemStyle: { color: APP.CHART_COLORS[i % APP.CHART_COLORS.length] },
+                 data: byEx[ex], symbolSize: 3 };
+      }),
+    }, true);
+    return true;
   };
 })();

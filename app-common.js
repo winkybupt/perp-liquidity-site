@@ -55,6 +55,17 @@
     return v === null || v === undefined ? '—' : v.toFixed(1) + ' bp';
   };
 
+  // 资金费率(折8h):百分比 5 位小数(与各所 App 展示精度一致);
+  // 正=多头付费(绿),负=空头付费(红);0 是值(常见于美股闭市时段),中性不着色
+  APP.fmtFundingPct = function (v) {
+    return v === null || v === undefined ? '—' : (v * 100).toFixed(5) + '%';
+  };
+  APP.fmtFunding = function (v) {
+    if (v === null || v === undefined) return '—';
+    var cls = v > 0 ? ' class="delta up"' : v < 0 ? ' class="delta down"' : '';
+    return '<span' + cls + '>' + APP.fmtFundingPct(v) + '</span>';
+  };
+
   // ---- 周/月聚合(vol=求和,oi=均值;ISO 周,周四定年) ----
   function isoWeekKey(dateStr) {
     var d = new Date(dateStr + 'T00:00:00Z');
