@@ -4,8 +4,8 @@
   var APP = window.APP;
   var fmtUsd = APP.fmtUsd, fmtBps = APP.fmtBps;
 
-  function shortTs(ts) {   // '2026-07-15T08:00' → '07-15 08:00'
-    return ts.slice(5, 10) + ' ' + ts.slice(11);
+  function shortTs(ts) {   // '2026-07-15T08:00'(UTC)→ '07-15 16:00'(北京)
+    return APP.beijingTs(ts).slice(5);
   }
 
   function market(st) {
@@ -218,9 +218,10 @@
     var pts = intra[ticker];
     if (!vols && !pts) { box.hidden = true; return false; }
     box.hidden = false;
-    var hours = [];
+    var hours = [];   // 数据序仍为 UTC 日 0-23 时,仅标签换北京(+8,跨日标"次日")
     for (var h = 0; h < 24; h++) {
-      hours.push((h < 10 ? '0' + h : h) + ':00');
+      var bj = (h + 8) % 24;
+      hours.push((h >= 16 ? '次日' : '') + (bj < 10 ? '0' + bj : bj) + ':00');
     }
     var oiLine = null;
     if (st.hasOi && pts) {
@@ -242,7 +243,7 @@
                     data: oiLine, itemStyle: { color: '#d29922' } });
     }
     document.getElementById('modal-hour-title').textContent =
-      '该日小时成交(' + (slice.date || '') + ' UTC)';
+      '该日小时成交(UTC 日 ' + (slice.date || '') + ',横轴北京时间)';
     chart.setOption({
       backgroundColor: APP.darkTheme.backgroundColor,
       textStyle: APP.darkTheme.textStyle,

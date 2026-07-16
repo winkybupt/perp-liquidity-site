@@ -25,6 +25,18 @@
            p(d.getUTCDate()) + ' ' + p(d.getUTCHours()) + ':00';
   };
 
+  APP.beijingIso = function (iso) {
+    // ISO(UTC)→ 'YYYY-MM-DD HH:MM'(北京);解析失败原样返回
+    var d = new Date(iso);
+    if (isNaN(d)) return iso;
+    var ms = d.getTime() + 8 * 3600 * 1000;
+    var b = new Date(ms);
+    function p(n) { return n < 10 ? '0' + n : '' + n; }
+    return b.getUTCFullYear() + '-' + p(b.getUTCMonth() + 1) + '-' +
+           p(b.getUTCDate()) + ' ' + p(b.getUTCHours()) + ':' +
+           p(b.getUTCMinutes());
+  };
+
   APP.esc = function (s) {  // 数据来自交易所 API,innerHTML 拼接前必须转义
     return String(s === null || s === undefined ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

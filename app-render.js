@@ -291,7 +291,8 @@
       warnBox.appendChild(p);
     });
     document.getElementById('generated-at').textContent =
-      meta.generated_at ? '数据生成时间:' + meta.generated_at : '';
+      meta.generated_at
+        ? '数据生成时间:' + APP.beijingIso(meta.generated_at) + '(北京)' : '';
   };
 
   APP.renderModalChart = function (st, chart, ticker) {
