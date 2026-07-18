@@ -57,6 +57,15 @@ h2 { font-size: 15px; font-weight: 600; }
 #date-pick { background: var(--panel); border: 1px solid var(--border);
   color: var(--text); border-radius: 8px; padding: 5px 10px;
   color-scheme: dark; }
+.depth-export { display: flex; gap: 6px; align-items: center;
+  color: var(--muted); font-size: 13px; }
+/* 作者级 display:flex 会盖掉 UA 的 [hidden]{display:none},必须显式补回 */
+.depth-export[hidden] { display: none; }
+#depth-export-days { background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px; padding: 5px 6px; width: 3.2em; }
+#depth-export-btn { background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+#depth-export-btn:disabled { opacity: .5; cursor: default; }
 
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; white-space: nowrap; }
@@ -74,6 +83,10 @@ tr.sub td:first-child { border-left: 2px solid var(--accent); }
 .tag { font-size: 11px; padding: 1px 8px; border-radius: 10px;
   border: 1px solid var(--border); color: var(--muted); }
 .na { color: #555; }
+/* 含RPI 内联对比:total 值高亮,改善量绿色 */
+.rpi { color: var(--accent); }
+.rpi-arrow { color: var(--muted); }
+.rpi-delta { color: var(--up); font-size: 11px; }
 
 .modal-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, .6);
   display: flex; align-items: center; justify-content: center; z-index: 10; }

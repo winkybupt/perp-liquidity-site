@@ -171,6 +171,11 @@
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });
+    // depth-export 控件仅 perp 可见(文件可用时)
+    var depthBox = document.getElementById('depth-export');
+    if (depthBox && depthBox.dataset.fileAvailable === 'true') {
+      depthBox.hidden = st.mode !== 'perp';
+    }
     renderAll();
   });
 
@@ -296,6 +301,71 @@
     if (modalHourChart) modalHourChart.resize();
     if (modalFundingChart) modalFundingChart.resize();
   });
+
+  // ---- 深度明细 CSV 下载(docs/depth-export) ----
+  // 文件仅 :8000 侧生成;Pages/file:// 探测不到即控件保持隐藏
+  (function () {
+    var SRC = 'exports/perp_depth_7d.csv';
+    var box = document.getElementById('depth-export');
+    var daysInput = document.getElementById('depth-export-days');
+    var btn = document.getElementById('depth-export-btn');
+    if (!box) return;
+    fetch(SRC, { method: 'HEAD' }).then(function (resp) {
+      if (resp.ok) {
+        box.dataset.fileAvailable = 'true';
+        box.hidden = st.mode !== 'perp';
+      }
+    }).catch(function () { /* 探测失败保持隐藏 */ });
+
+    // 纯函数:保留表头 + snap_ts_bj 属最近 n 个北京日(含今日)的行。
+    // "今日"以文件内最大 snap_ts_bj 日期为锚——不读客户端时钟,消除
+    // 非 UTC+8 时区错窗与北京午夜空窗(n>=7 时调用方跳过本函数)
+    function filterRecentBjDays(text, n) {
+      var nl = text.indexOf('\r\n') !== -1 ? '\r\n' : '\n';  // csv.writer 默认 \r\n
+      var lines = text.split(nl);
+      while (lines.length && lines[lines.length - 1] === '') lines.pop();
+      var col = lines.length ? lines[0].split(',').indexOf('snap_ts_bj') : -1;
+      if (col === -1) return text;              // 结构异常,原样返回
+      var maxDate = '';
+      var i, d;
+      for (i = 1; i < lines.length; i++) {
+        d = lines[i].split(',')[col];
+        if (d && d.slice(0, 10) > maxDate) maxDate = d.slice(0, 10);
+      }
+      if (!maxDate) return text;
+      var t = new Date(maxDate + 'T00:00:00Z');
+      t.setUTCDate(t.getUTCDate() - (n - 1));
+      var cutoff = t.toISOString().slice(0, 10);
+      var out = lines.filter(function (line, idx) {
+        if (idx === 0) return true;
+        var v = line.split(',')[col];
+        return v && v.slice(0, 10) >= cutoff;
+      });
+      return out.join(nl) + nl;
+    }
+
+    btn.addEventListener('click', function () {
+      var n = Math.min(7, Math.max(1, parseInt(daysInput.value, 10) || 3));
+      daysInput.value = n;                      // 越界输入钳制回写
+      btn.disabled = true;
+      fetch(SRC).then(function (resp) {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.text();
+      }).then(function (text) {
+        var blob = new Blob([n >= 7 ? text : filterRecentBjDays(text, n)],
+                            { type: 'text/csv' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'perp_depth_' + n + 'd.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+      }).catch(function () {
+        alert('下载失败,请稍后重试');
+      }).then(function () { btn.disabled = false; });
+    });
+  })();
 
   APP.renderListings();   // 静态双市场面板,渲一次即可
   renderAll();

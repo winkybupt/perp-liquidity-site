@@ -64,7 +64,10 @@
   };
 
   APP.fmtBps = function (v) {
-    return v === null || v === undefined ? '—' : v.toFixed(1) + ' bp';
+    // 自适应精度:点差常 <1 bp,1 位小数会把 0.15/0.07 都压成 0.1(尤其含RPI
+    // 对比时看着自相矛盾)。<10 bp 显 2 位、其余 1 位。
+    if (v === null || v === undefined) return '—';
+    return (Math.abs(v) < 10 ? v.toFixed(2) : v.toFixed(1)) + ' bp';
   };
 
   // 资金费率(折8h):百分比 5 位小数(与各所 App 展示精度一致);

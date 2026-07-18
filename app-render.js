@@ -192,6 +192,23 @@
     return vals.length ? Math.max.apply(null, vals) : null;
   };
 
+  // 含RPI 内联对比:`API → 含RPI(total)`;仅两侧都有值才对比,否则只显 API。
+  // betterWhenLower=true(点差,越小越好,显 −收窄)/ false(深度,越大越好,显 +增量);
+  // 改善量 ≤0(两次独立请求的时点偏移致反向/持平)不显,避免负号误导(F9)。
+  APP.rpiCell = function (apiVal, totalVal, fmt, betterWhenLower) {
+    if (apiVal === null || apiVal === undefined ||
+        totalVal === null || totalVal === undefined) return fmt(apiVal);
+    var html = fmt(apiVal) + ' <span class="rpi-arrow">→</span> ' +
+               '<span class="rpi">' + fmt(totalVal) + '</span>';
+    var improve = betterWhenLower ? (apiVal - totalVal) : (totalVal - apiVal);
+    // 改善量在显示精度下不为 0 才显(避免 "0.07→0.07 (−0.00)" 这类噪声)
+    if (improve > 0 && fmt(improve) !== fmt(0)) {
+      html += ' <span class="rpi-delta">(' +
+              (betterWhenLower ? '−' : '+') + fmt(improve) + ')</span>';
+    }
+    return html;
+  };
+
   APP.renderTickerTable = function (st) {
     var live = st.detailMode === 'live';
     // 频率标签随视图联动(日快照=每日更新;最新时点=每 4 小时刷新)
@@ -250,16 +267,18 @@
     tbody.innerHTML = rows.map(function (r, i) {
       var subs = r.exchanges.map(function (e) {
         var isChain = e.exchange === 'ondo';
+        var hasRpi = e.spread_bps_total !== null && e.spread_bps_total !== undefined;
         var srcName = esc(APP.EX_NAMES[e.exchange] || e.exchange) +
-          (isChain ? ' <span class="tag" title="链上成交,UTC 自然日口径(非 24h 滚动),无盘口数据">UTC 日</span>' : '');
+          (isChain ? ' <span class="tag" title="链上成交,UTC 自然日口径(非 24h 滚动),无盘口数据">UTC 日</span>' : '') +
+          (hasRpi ? ' <span class="tag" title="点差/深度含 RPI(零售改善单)合并盘口口径;仅 Binance 提供,不与其它所横比;total 顶档不含被交易所隐藏的交叉档">含RPI</span>' : '');
         var cells = '<tr class="sub" data-parent="' + i + '" hidden>' +
           '<td></td><td>' + srcName +
           ' <span class="na">' + esc(e.symbol) + '</span></td><td></td>' +
           '<td class="num">' + fmtUsd(e.vol) + '</td>';
         if (st.hasOi) cells += '<td class="num">' + fmtUsd(e.oi) + '</td>';
         return cells + '<td></td>' +
-          '<td class="num">' + fmtBps(e.spread_bps) + '</td>' +
-          '<td class="num">' + fmtUsd(e[st.depthKey]) + '</td>' +
+          '<td class="num">' + APP.rpiCell(e.spread_bps, e.spread_bps_total, fmtBps, true) + '</td>' +
+          '<td class="num">' + APP.rpiCell(e[st.depthKey], e[st.depthKey + '_total'], fmtUsd, false) + '</td>' +
           (st.hasOi ? '<td class="num">' + APP.fmtFunding(e.funding_8h) + '</td>' : '') +
           '</tr>';
       }).join('');
