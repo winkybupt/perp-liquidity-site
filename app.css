@@ -88,6 +88,24 @@ tr.sub td:first-child { border-left: 2px solid var(--accent); }
 .rpi-arrow { color: var(--muted); }
 .rpi-delta { color: var(--up); font-size: 11px; }
 
+.pagination { display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 10px; margin-top: 12px; color: var(--muted);
+  font-size: 12px; }
+.pagination[hidden] { display: none; }
+.pagination-summary { white-space: nowrap; }
+.pagination-list { display: flex; align-items: center; flex-wrap: wrap;
+  gap: 4px; list-style: none; }
+.pagination button { min-width: 32px; height: 30px; padding: 0 9px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--bg); color: var(--muted); cursor: pointer; }
+.pagination button:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+.pagination button.active { background: var(--accent); border-color: var(--accent);
+  color: var(--bg); font-weight: 600; }
+.pagination button:disabled { opacity: .4; cursor: default; }
+.pagination button:focus-visible { outline: 2px solid var(--accent);
+  outline-offset: 2px; }
+.pagination-ellipsis { min-width: 24px; text-align: center; color: var(--muted); }
+
 .modal-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, .6);
   display: flex; align-items: center; justify-content: center; z-index: 10; }
 .modal-mask[hidden] { display: none; }  /* display:flex 会压过 hidden 属性的 UA 样式 */

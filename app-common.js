@@ -81,6 +81,45 @@
     return '<span' + cls + '>' + APP.fmtFundingPct(v) + '</span>';
   };
 
+  // ---- 标的明细分页纯逻辑(DOM 渲染与事件层共用) ----
+  APP.paginate = function (rows, currentPage, pageSize) {
+    var size = Math.floor(Number(pageSize));
+    if (!isFinite(size) || size < 1) size = 20;
+    var total = rows.length;
+    var totalPages = Math.max(1, Math.ceil(total / size));
+    var page = Math.floor(Number(currentPage));
+    if (!isFinite(page)) page = 1;
+    page = Math.min(Math.max(page, 1), totalPages);
+    var start = (page - 1) * size;
+    return { total: total, totalPages: totalPages, page: page,
+             pageSize: size, rows: rows.slice(start, start + size) };
+  };
+
+  // data-page 来自 DOM dataset(字符串);非法用户目标必须忽略,不能钳制后改状态。
+  APP.pageTarget = function (target, totalPages) {
+    if (target === null || target === undefined || target === '') return null;
+    var page = Number(target);
+    if (!isFinite(page) || Math.floor(page) !== page || page < 1 ||
+        page > totalPages) return null;
+    return page;
+  };
+
+  // 最多 7 槽:首页/末页/当前邻页固定可达,远处页用省略号压缩。
+  APP.pageItems = function (currentPage, totalPages) {
+    var total = Math.max(1, Math.floor(Number(totalPages)) || 1);
+    var current = Math.min(Math.max(Math.floor(Number(currentPage)) || 1, 1), total);
+    var items = [], i;
+    if (total <= 7) {
+      for (i = 1; i <= total; i++) items.push(i);
+      return items;
+    }
+    if (current <= 4) return [1, 2, 3, 4, 5, '…', total];
+    if (current >= total - 3) {
+      return [1, '…', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '…', current - 1, current, current + 1, '…', total];
+  };
+
   // ---- 周/月聚合(vol=求和,oi=均值;ISO 周,周四定年) ----
   function isoWeekKey(dateStr) {
     var d = new Date(dateStr + 'T00:00:00Z');

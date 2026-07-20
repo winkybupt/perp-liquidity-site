@@ -242,8 +242,47 @@
       arrow('funding_8h') + '</th>' : '') + '</tr>';
 
     var tbody = document.querySelector('#ticker-table tbody');
+    var pager = document.getElementById('ticker-pagination');
+    var pagerSummary = document.getElementById('ticker-pagination-summary');
+    var pagerList = document.getElementById('ticker-pagination-list');
+    function hidePager() {
+      pager.hidden = true;
+      pagerSummary.textContent = '';
+      pagerList.innerHTML = '';
+      st.detailTotalPages = 1;
+    }
+    function renderPager(pageInfo) {
+      st.detailPage = pageInfo.page;
+      st.detailTotalPages = pageInfo.totalPages;
+      if (pageInfo.totalPages <= 1) { hidePager(); return; }
+      var items = APP.pageItems(pageInfo.page, pageInfo.totalPages);
+      function button(page, label, text, disabled, current) {
+        return '<li><button type="button" data-page="' + page + '"' +
+          ' aria-label="' + label + '"' +
+          (disabled ? ' disabled' : '') +
+          (current ? ' class="active" aria-current="page"' : '') +
+          '>' + text + '</button></li>';
+      }
+      var controls = button(pageInfo.page - 1, '上一页', '上一页',
+                            pageInfo.page === 1, false);
+      items.forEach(function (item) {
+        if (item === '…') {
+          controls += '<li class="pagination-ellipsis" aria-label="省略的页码">…</li>';
+          return;
+        }
+        controls += button(item, '第 ' + item + ' 页', item, false,
+                           item === pageInfo.page);
+      });
+      controls += button(pageInfo.page + 1, '下一页', '下一页',
+                         pageInfo.page === pageInfo.totalPages, false);
+      pagerSummary.textContent = '共 ' + pageInfo.total + ' 个标的 · 第 ' +
+        pageInfo.page + '/' + pageInfo.totalPages + ' 页';
+      pagerList.innerHTML = controls;
+      pager.hidden = false;
+    }
     var detail = st.currentDetail();
     if (detail === null) {   // 切片加载中,与"真无数据"区分
+      hidePager();
       tbody.innerHTML = '<tr><td colspan="' + (st.hasOi ? 9 : 7) +
         '" class="na">加载中…</td></tr>';
       return;
@@ -263,8 +302,10 @@
       if (typeof av === 'string') return st.sortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
       return st.sortDesc ? bv - av : av - bv;
     });
+    var pageInfo = APP.paginate(rows, st.detailPage, st.detailPageSize);
+    renderPager(pageInfo);
     var colspan = st.hasOi ? 9 : 7;
-    tbody.innerHTML = rows.map(function (r, i) {
+    tbody.innerHTML = pageInfo.rows.map(function (r, i) {
       var subs = r.exchanges.map(function (e) {
         var isChain = e.exchange === 'ondo';
         var hasRpi = e.spread_bps_total !== null && e.spread_bps_total !== undefined;

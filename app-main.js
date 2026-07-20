@@ -16,6 +16,7 @@
     depthKey: 'depth_l3_usd',
     sortKey: 'vol', sortDesc: true,
     typeFilter: 'all', searchTerm: '',
+    detailPage: 1, detailPageSize: 20, detailTotalPages: 1,
     selectedDate: null,   // null = 最新日
     dateIndex: function (series) {
       if (!st.selectedDate) return series.length - 1;
@@ -73,6 +74,7 @@
     APP.renderExchangeTable(st);
     APP.renderTickerTable(st);
   }
+  function resetDetailPage() { st.detailPage = 1; }
 
   // ---- 日期选择(days/ 切片懒加载;file:// 用 script 注入)----
   var datePick = document.getElementById('date-pick');
@@ -146,6 +148,7 @@
     document.body.appendChild(tag);
   }
   function loadDay(date) {
+    resetDetailPage();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
         || allDates.indexOf(date) === -1) {
       st.selectedDate = null;
@@ -164,6 +167,7 @@
     var btn = e.target.closest('button');
     if (!btn) return;
     st.mode = btn.dataset.mode;
+    resetDetailPage();
     st.hasOi = st.mode === 'perp';
     if ((st.sortKey === 'oi' || st.sortKey === 'funding_8h') && !st.hasOi) {
       st.sortKey = 'vol'; st.sortDesc = true;   // spot 无 OI/funding 列,排序键复位
@@ -198,6 +202,7 @@
     var key = th.dataset.sort;
     if (st.sortKey === key) { st.sortDesc = !st.sortDesc; }
     else { st.sortKey = key; st.sortDesc = true; }
+    resetDetailPage();
     APP.renderTickerTable(st);
   });
 
@@ -212,6 +217,18 @@
     var show = subs.length && subs[0].hidden;
     Array.prototype.forEach.call(subs, function (s) { s.hidden = !show; });
     row.querySelector('.expander').textContent = show ? '▾' : '▸';
+  });
+
+  // ---- 明细表:分页(按钮列表每次重建,委托常驻) ----
+  document.getElementById('ticker-pagination').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-page]');
+    if (!btn || btn.disabled) return;
+    var page = APP.pageTarget(btn.dataset.page, st.detailTotalPages);
+    if (page === null || page === st.detailPage) return;
+    st.detailPage = page;
+    APP.renderTickerTable(st);
+    var current = this.querySelector('button[aria-current="page"]');
+    if (current) current.focus();
   });
 
   // ---- 份额图 堆叠/独立 切换 ----
@@ -230,6 +247,7 @@
     var btn = e.target.closest('button');
     if (!btn) return;
     st.detailMode = btn.dataset.dm;
+    resetDetailPage();
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });
@@ -241,6 +259,7 @@
     var btn = e.target.closest('button');
     if (!btn) return;
     st.typeFilter = btn.dataset.t;
+    resetDetailPage();
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });
@@ -248,10 +267,12 @@
   });
   document.getElementById('search').addEventListener('input', function () {
     st.searchTerm = this.value.trim();
+    resetDetailPage();
     APP.renderTickerTable(st);
   });
   document.getElementById('depth-scope').addEventListener('change', function () {
     st.depthKey = this.value;
+    resetDetailPage();
     APP.renderTickerTable(st);
   });
 
