@@ -127,4 +127,5 @@ footer { color: var(--muted); font-size: 12px; line-height: 1.8; }
 .freq-tag.h4 { color: #58a6ff; border: 1px solid #1f4a7a; background: rgba(88,166,255,.08); }
 
 .toggle.inline { display: inline-flex; margin-left: 10px; vertical-align: middle; }
+.toggle.inline[hidden] { display: none; }
 .toggle.inline button { padding: 1px 8px; font-size: 11px; }

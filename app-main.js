@@ -13,6 +13,7 @@
     granularity: 'day',
     detailMode: 'day',   // 明细表:day=日快照(联动日期框)| live=最新时点(4h)
     shareStack: 'line',  // 份额图:line=独立折线(默认)| stack=堆叠
+    shareValue: 'amount', // 份额图:amount=美元成交额(默认)| percent=时间桶占比
     depthKey: 'depth_l3_usd',
     sortKey: 'vol', sortDesc: true,
     typeFilter: 'all', searchTerm: '',
@@ -63,7 +64,13 @@
   var modalFundingChart = null;
   var modalTicker = null;   // 弹窗打开中的标的(切片迟到时补渲小时图)
 
+  function syncShareValueMode() {
+    // 小时图保留既有金额口径；切回日级时不改 shareValue，恢复用户选择。
+    document.getElementById('share-value-mode').hidden = st.granularity === 'hour';
+  }
+
   function renderAll() {
+    syncShareValueMode();
     APP.renderFooterMeta(st);
     APP.renderHeader(st);
     APP.renderCards(st);
@@ -191,6 +198,7 @@
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });
+    syncShareValueMode();
     APP.renderTotalChart(st, totalChart);
     APP.renderShareChart(st, shareChart);
   });
@@ -236,6 +244,17 @@
     var btn = e.target.closest('button');
     if (!btn) return;
     st.shareStack = btn.dataset.sm;
+    this.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('active', b === btn);
+    });
+    APP.renderShareChart(st, shareChart);
+  });
+
+  // ---- 份额图 金额/占比 切换(日/周/月专属;小时控件隐藏) ----
+  document.getElementById('share-value-mode').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    st.shareValue = btn.dataset.sv;
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });

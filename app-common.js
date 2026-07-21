@@ -165,4 +165,29 @@
                oi: oi, ongoing: ongoing };
     });
   };
+
+  // 份额图的周/月聚合必须保留“全缺失”与“真实零”的区别；通用 aggregate
+  // 为总量图服务，会将缺失成交归零，不能复用。
+  APP.aggregateShare = function (series, g, latestDate) {
+    if (g === 'day') return series.map(function (x) {
+      return { label: x.date, vol: x.vol };
+    });
+    var keyFn = g === 'week' ? isoWeekKey
+                             : function (d) { return d.slice(0, 7); };
+    var groups = {}, order = [];
+    series.forEach(function (x) {
+      var k = keyFn(x.date);
+      if (!groups[k]) { groups[k] = { vol: 0, hasVol: false }; order.push(k); }
+      if (x.vol !== null && x.vol !== undefined) {
+        groups[k].vol += x.vol;
+        groups[k].hasVol = true;
+      }
+    });
+    return order.map(function (k) {
+      var gp = groups[k];
+      var ongoing = periodEnd(k, g) > (latestDate || '');
+      return { label: k + (ongoing ? '(进行中)' : ''),
+               vol: gp.hasVol ? gp.vol : null };
+    });
+  };
 })();

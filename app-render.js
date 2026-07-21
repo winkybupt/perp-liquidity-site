@@ -105,29 +105,45 @@
                              st.block().meta.latest_date);
     var labels = rows.map(function (r) { return r.label; });
     var stacked = st.shareStack !== 'line';
-    var series = names.map(function (ex, i) {
-      var agg = APP.aggregate(es[ex], st.granularity, st.block().meta.latest_date);
+    var percent = st.shareValue === 'percent';
+    var raw = names.map(function (ex) {
+      var agg = APP.aggregateShare(es[ex], st.granularity,
+                                   st.block().meta.latest_date);
       var byLabel = {};
       agg.forEach(function (r) { byLabel[r.label] = r.vol; });
+      return labels.map(function (l) {
+        var v = byLabel[l];
+        return (v === undefined || v === null) ? null : v;
+      });
+    });
+    var totals = labels.map(function (_, idx) {
+      return raw.reduce(function (sum, values) {
+        return values[idx] === null ? sum : sum + values[idx];
+      }, 0);
+    });
+    var series = names.map(function (ex, i) {
+      var values = raw[i].map(function (v, idx) {
+        if (v === null) return stacked ? 0 : null;
+        if (!percent) return v;
+        return totals[idx] ? v / totals[idx] * 100 : 0;
+      });
       return { name: APP.EX_NAMES[ex] || ex, type: 'line',
-               stack: stacked ? 'vol' : undefined,
+               stack: stacked ? (percent ? 'share' : 'vol') : undefined,
                areaStyle: stacked ? { opacity: .35 } : undefined,
                smooth: true, symbol: 'none',
                itemStyle: { color: APP.CHART_COLORS[i % APP.CHART_COLORS.length] },
-               data: labels.map(function (l) {
-                 var v = byLabel[l];
-                 // 补 0 是堆叠的技术需要;独立模式缺数日置 null 自然断线
-                 if (stacked) return v || 0;
-                 return (v === undefined || v === null) ? null : v;
-               }) };
+               data: values };
     });
     chart.setOption({
       backgroundColor: dark.backgroundColor, textStyle: dark.textStyle,
-      tooltip: Object.assign({}, dark.tooltip, { valueFormatter: fmtUsd }),
+      tooltip: Object.assign({}, dark.tooltip, { valueFormatter: percent
+        ? function (v) { return v.toFixed(2) + '%'; } : fmtUsd }),
       legend: { textStyle: { color: '#8b949e' } },
       grid: { left: 60, right: 20, top: 34, bottom: 40 },
       xAxis: Object.assign({ type: 'category', data: labels }, axisStyle()),
-      yAxis: Object.assign({ type: 'value' }, axisStyle(fmtUsd)),
+      yAxis: Object.assign({ type: 'value', max: percent ? 100 : undefined },
+                           axisStyle(percent ? function (v) { return v + '%'; }
+                                             : fmtUsd)),
       series: series,
     }, true);
   };
