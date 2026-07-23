@@ -52,6 +52,13 @@
     return '$' + v.toFixed(0);
   };
 
+  APP.fmtPrice = function (v) {
+    if (v === null || v === undefined) return '—';
+    var fixed = v.toFixed(Math.abs(v) < 1 ? 4 : 2).split('.');
+    fixed[0] = fixed[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return '$' + fixed.join('.');
+  };
+
   APP.fmtDelta = function (cur, prev, flagged) {
     if (prev === null || prev === undefined || !prev
         || cur === null || cur === undefined) return '';

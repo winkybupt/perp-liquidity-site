@@ -2,8 +2,8 @@
 (function () {
   'use strict';
   var APP = window.APP;
-  var esc = APP.esc, fmtUsd = APP.fmtUsd, fmtDelta = APP.fmtDelta,
-      fmtBps = APP.fmtBps;
+  var esc = APP.esc, fmtUsd = APP.fmtUsd, fmtPrice = APP.fmtPrice,
+      fmtDelta = APP.fmtDelta, fmtBps = APP.fmtBps;
 
   function axisStyle(fmt) {
     // fmt:可选 y 轴标签格式化函数。必须从这里传——调用方若自带 axisLabel
@@ -373,12 +373,15 @@
 
   APP.renderModalChart = function (st, chart, ticker) {
     var series = (st.block().ticker_series || {})[ticker] || [];
+    var hasPrice = series.some(function (x) {
+      return x.price !== null && x.price !== undefined;
+    });
     var opts = {
       backgroundColor: 'transparent', textStyle: dark.textStyle,
       tooltip: Object.assign({}, dark.tooltip, { valueFormatter: fmtUsd }),
-      legend: { data: st.hasOi ? ['成交', 'OI'] : ['成交'],
-                textStyle: { color: '#8b949e' } },
-      grid: { left: 60, right: 60, top: 34, bottom: 40 },
+      legend: { data: [], textStyle: { color: '#8b949e' } },
+      grid: { left: 70, right: hasPrice ? (st.hasOi ? 160 : 80) : 60,
+              top: 34, bottom: 40 },
       xAxis: Object.assign({ type: 'category',
         data: series.map(function (x) { return x.date; }) }, axisStyle()),
       yAxis: [Object.assign({ type: 'value' }, axisStyle(fmtUsd))],
@@ -393,6 +396,18 @@
         data: series.map(function (x) { return x.oi; }),
         itemStyle: { color: '#d29922' } });
     }
+    if (hasPrice) {
+      var priceAxisIndex = opts.yAxis.length;
+      opts.yAxis.push(Object.assign(
+        { type: 'value', position: 'right', offset: st.hasOi ? 72 : 0 },
+        axisStyle(fmtPrice), { splitLine: { show: false } }));
+      opts.series.push({ name: '价格', type: 'line',
+        yAxisIndex: priceAxisIndex, smooth: true,
+        data: series.map(function (x) { return x.price; }),
+        itemStyle: { color: '#3fb950' }, lineStyle: { width: 2 },
+        tooltip: { valueFormatter: fmtPrice } });
+    }
+    opts.legend.data = opts.series.map(function (s) { return s.name; });
     chart.setOption(opts, true);
   };
 
