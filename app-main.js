@@ -354,6 +354,7 @@
     var daysInput = document.getElementById('depth-export-days');
     var btn = document.getElementById('depth-export-btn');
     if (!box) return;
+    if (window.location.protocol === 'file:') return;
     fetch(SRC, { method: 'HEAD' }).then(function (resp) {
       if (resp.ok) {
         box.dataset.fileAvailable = 'true';
