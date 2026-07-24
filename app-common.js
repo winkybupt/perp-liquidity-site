@@ -111,6 +111,31 @@
     return page;
   };
 
+  // 高频 UI 更新合并到下一绘制帧；回调执行中再次请求时保留下一帧，
+  // 避免 pending 标记的清理时机吞掉重入更新。
+  APP.createFrameScheduler = function (requestFrame, callback) {
+    var pending = false, running = false, rerun = false;
+    function schedule() {
+      if (running) { rerun = true; return; }
+      if (pending) return;
+      pending = true;
+      requestFrame(function () {
+        pending = false;
+        running = true;
+        try {
+          callback();
+        } finally {
+          running = false;
+          if (rerun) {
+            rerun = false;
+            schedule();
+          }
+        }
+      });
+    }
+    return schedule;
+  };
+
   // 最多 7 槽:首页/末页/当前邻页固定可达,远处页用省略号压缩。
   APP.pageItems = function (currentPage, totalPages) {
     var total = Math.max(1, Math.floor(Number(totalPages)) || 1);

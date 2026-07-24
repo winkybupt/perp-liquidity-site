@@ -36,6 +36,7 @@
     var m = market(st), hours = st.intraday().meta.hour_ts || [];
     var names = Object.keys(m.vol_by_exchange || {});
     chart.setOption({
+      animation: false,
       backgroundColor: APP.darkTheme.backgroundColor,
       textStyle: APP.darkTheme.textStyle,
       tooltip: Object.assign({}, APP.darkTheme.tooltip,

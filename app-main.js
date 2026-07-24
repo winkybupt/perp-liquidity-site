@@ -63,6 +63,10 @@
   var modalHourChart = null;
   var modalFundingChart = null;
   var modalTicker = null;   // 弹窗打开中的标的(切片迟到时补渲小时图)
+  var scheduleShareRender = APP.createFrameScheduler(
+    function (callback) { window.requestAnimationFrame(callback); },
+    function () { APP.renderShareChart(st, shareChart); }
+  );
 
   function syncShareValueMode() {
     // 小时图保留既有金额口径；切回日级时不改 shareValue，恢复用户选择。
@@ -242,23 +246,23 @@
   // ---- 份额图 堆叠/独立 切换 ----
   document.getElementById('share-mode').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
-    if (!btn) return;
+    if (!btn || st.shareStack === btn.dataset.sm) return;
     st.shareStack = btn.dataset.sm;
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });
-    APP.renderShareChart(st, shareChart);
+    scheduleShareRender();
   });
 
   // ---- 份额图 金额/占比 切换(日/周/月专属;小时控件隐藏) ----
   document.getElementById('share-value-mode').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
-    if (!btn) return;
+    if (!btn || st.shareValue === btn.dataset.sv) return;
     st.shareValue = btn.dataset.sv;
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });
-    APP.renderShareChart(st, shareChart);
+    scheduleShareRender();
   });
 
   // ---- 明细表 日快照/最新时点 切换 ----

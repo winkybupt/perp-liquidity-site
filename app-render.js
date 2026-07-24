@@ -135,6 +135,7 @@
                data: values };
     });
     chart.setOption({
+      animation: false,
       backgroundColor: dark.backgroundColor, textStyle: dark.textStyle,
       tooltip: Object.assign({}, dark.tooltip, { valueFormatter: percent
         ? function (v) { return v.toFixed(2) + '%'; } : fmtUsd }),
