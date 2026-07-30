@@ -111,6 +111,34 @@
     return page;
   };
 
+  APP.exchangeRankings = function (detail, exchange, metric) {
+    var key = metric === 'oi' ? 'oi' : 'vol';
+    var groups = Object.create(null);
+    (detail || []).forEach(function (row) {
+      var ticker = String(row.ticker || '');
+      (row.exchanges || []).forEach(function (venue) {
+        if (venue.exchange !== exchange) return;
+        var raw = venue[key];
+        if (raw === null || raw === undefined) return;
+        var value = Number(raw);
+        if (!isFinite(value)) return;
+        if (!groups[ticker]) {
+          groups[ticker] = { ticker: ticker, asset_type: row.asset_type,
+                             value: 0 };
+        }
+        groups[ticker].value += value;
+      });
+    });
+    return Object.keys(groups).map(function (ticker) { return groups[ticker]; })
+      .sort(function (a, b) {
+        if (a.value !== b.value) return b.value - a.value;
+        return a.ticker < b.ticker ? -1 : a.ticker > b.ticker ? 1 : 0;
+      }).slice(0, 20).map(function (row, index) {
+        return { rank: index + 1, ticker: row.ticker,
+                 asset_type: row.asset_type, value: row.value };
+      });
+  };
+
   // 高频 UI 更新合并到下一绘制帧；回调执行中再次请求时保留下一帧，
   // 避免 pending 标记的清理时机吞掉重入更新。
   APP.createFrameScheduler = function (requestFrame, callback) {

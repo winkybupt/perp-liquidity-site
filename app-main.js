@@ -38,6 +38,15 @@
       var day = dayCache[st.selectedDate];
       return day ? (day[st.mode] || []) : null;   // null = 加载中
     },
+    rankDate: function () { return datePick.value || null; },
+    rankDetail: function () {
+      var date = st.rankDate();
+      var block = st.block();
+      if (!date) return [];
+      if (date === block.meta.latest_date) return block.latest_detail || [];
+      var day = dayCache[date];
+      return day && !day.failed ? (day[st.mode] || []) : null;
+    },
     block: function () {
       var b = DATA[st.mode];
       return b || { meta: { latest_date: null, exchanges_status: {},
@@ -64,6 +73,10 @@
   var modalHourChart = null;
   var modalFundingChart = null;
   var modalTicker = null;   // 弹窗打开中的标的(切片迟到时补渲小时图)
+  var rankExchange = null;
+  var rankMetric = 'vol';
+  var rankTrigger = null;
+  var rankInertElements = [];
   var scheduleShareRender = APP.createFrameScheduler(
     function (callback) { window.requestAnimationFrame(callback); },
     function () { APP.renderShareChart(st, shareChart); }
@@ -134,6 +147,10 @@
     }
   }
   window.__PERP_DAY_CB = function (detail) {
+    // 已超时/失败的旧 script 即使迟到也不能复活失败片；显式重试会先
+    // 重新设置 pendingDays，因此仍可正常接收新请求的回调。
+    if (!pendingDays[detail.date] && dayCache[detail.date] &&
+        dayCache[detail.date].failed) return;
     dayCache[detail.date] = detail;
     delete pendingDays[detail.date];
     if (st.selectedDate === detail.date) renderAll();
@@ -169,6 +186,7 @@
     document.body.appendChild(tag);
   }
   function loadDay(date) {
+    closeRankModal();
     resetDetailPage();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
         || allDates.indexOf(date) === -1) {
@@ -187,6 +205,7 @@
   document.getElementById('mode-tabs').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
+    closeRankModal();
     st.mode = btn.dataset.mode;
     resetDetailPage();
     st.hasOi = st.mode === 'perp';
@@ -251,6 +270,18 @@
     APP.renderTickerTable(st);
     var current = this.querySelector('button[aria-current="page"]');
     if (current) current.focus();
+  });
+
+  // ---- 数据源拆分 Top 20 ----
+  document.querySelector('#exchange-table tbody').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-rank-exchange]');
+    if (!btn) return;
+    openRankModal(btn.dataset.rankExchange, btn);
+  });
+  document.getElementById('rank-metric-mode').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-rank-metric]');
+    if (!btn || btn.hidden || !rankExchange) return;
+    rankMetric = APP.renderRankModal(st, rankExchange, btn.dataset.rankMetric);
   });
 
   // ---- 份额图 成交额/OI 切换 ----
@@ -319,7 +350,72 @@
   });
 
   // ---- 弹窗 ----
+  function setRankBackgroundInert(active) {
+    if (active) {
+      rankInertElements = [];
+      Array.prototype.forEach.call(document.body.children, function (element) {
+        if (element.id === 'rank-modal' || element.inert) return;
+        element.inert = true;
+        rankInertElements.push(element);
+      });
+      return;
+    }
+    rankInertElements.forEach(function (element) { element.inert = false; });
+    rankInertElements = [];
+  }
+  function trapRankFocus(e) {
+    if (e.key !== 'Tab') return;
+    var modal = document.getElementById('rank-modal');
+    var dialog = modal.querySelector('[role="dialog"]');
+    var focusable = Array.prototype.filter.call(
+      dialog.querySelectorAll(
+        'button:not([hidden]):not([disabled]), [href], input:not([disabled]), ' +
+        'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+      function (element) { return !element.hidden; }
+    );
+    if (!focusable.length) return;
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+    if (e.shiftKey && (document.activeElement === first ||
+                       !dialog.contains(document.activeElement))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+  function openRankModal(exchange, trigger) {
+    closeModal();
+    rankExchange = exchange;
+    rankMetric = 'vol';
+    rankTrigger = trigger;
+    document.getElementById('rank-modal').hidden = false;
+    setRankBackgroundInert(true);
+    APP.renderRankModal(st, rankExchange, rankMetric);
+    document.getElementById('rank-modal-close').focus();
+  }
+  function closeRankModal() {
+    var modal = document.getElementById('rank-modal');
+    if (modal.hidden) return;
+    modal.hidden = true;
+    rankExchange = null;
+    setRankBackgroundInert(false);
+    if (rankTrigger) rankTrigger.focus();
+    rankTrigger = null;
+  }
+  document.getElementById('rank-modal-close').addEventListener('click', closeRankModal);
+  document.getElementById('rank-modal').addEventListener('click', function (e) {
+    if (e.target === this) closeRankModal();
+  });
+  window.addEventListener('keydown', function (e) {
+    if (document.getElementById('rank-modal').hidden) return;
+    if (e.key === 'Escape') closeRankModal();
+    else trapRankFocus(e);
+  });
+
   function openModal(ticker) {
+    closeRankModal();
     document.getElementById('modal-title').textContent =
       ticker + ' · 历史趋势(日)';
     document.getElementById('modal').hidden = false;

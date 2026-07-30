@@ -126,6 +126,29 @@
   </nav>
 </section>
 
+<div class="modal-mask" id="rank-modal" hidden>
+  <div class="modal rank-dialog" role="dialog" aria-modal="true"
+       aria-labelledby="rank-modal-title">
+    <div class="modal-head">
+      <h3 id="rank-modal-title"></h3>
+      <button type="button" id="rank-modal-close" aria-label="关闭排行弹窗">✕</button>
+    </div>
+    <div class="rank-controls">
+      <span class="toggle" id="rank-metric-mode" role="group" aria-label="排行指标">
+        <button type="button" id="rank-metric-vol" data-rank-metric="vol"
+                class="active" aria-pressed="true">成交额</button>
+        <button type="button" id="rank-metric-oi" data-rank-metric="oi"
+                aria-pressed="false">OI</button>
+      </span>
+    </div>
+    <div class="table-wrap rank-table-wrap" id="rank-table-wrap" tabindex="0"
+         aria-label="排行表格，可滚动">
+      <table id="rank-table"><thead></thead><tbody></tbody></table>
+    </div>
+    <p class="rank-empty" id="rank-empty" hidden></p>
+  </div>
+</div>
+
 <div class="modal-mask" id="modal" hidden>
   <div class="modal">
     <div class="modal-head"><h3 id="modal-title"></h3><button id="modal-close">✕</button></div>

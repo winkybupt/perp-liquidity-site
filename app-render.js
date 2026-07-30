@@ -159,11 +159,23 @@
       '<th class="num">环比</th>' +
       (st.hasOi ? '<th class="num">持仓 OI</th><th class="num">环比</th>' : '') +
       '<th class="num" title="该所 TradFi 成交占其全市场总量(含加密)的百分比;分母来自 CoinGecko">TradFi 占比</th>' +
-      '<th class="num">标的数</th></tr>';
+      '<th class="num">标的数</th><th>排行</th></tr>';
     var tbody = document.querySelector('#exchange-table tbody');
     var target = st.selectedDate || latest;
     var share = st.block().tradfi_share || { dates: [], by_exchange: {} };
     var shareIdx = share.dates.indexOf(target);
+    var exactDetail = st.rankDetail();
+    function rankCell(ex) {
+      var available = exactDetail && exactDetail.some(function (row) {
+        return (row.exchanges || []).some(function (venue) {
+          return venue.exchange === ex;
+        });
+      });
+      return available
+        ? '<button type="button" class="rank-open" data-rank-exchange="' +
+          esc(ex) + '">查看 Top 20</button>'
+        : '—';
+    }
     function shareCell(ex, stale) {
       if (stale || shareIdx === -1) return '—';
       var v = (share.by_exchange[ex] || [])[shareIdx];
@@ -187,7 +199,7 @@
           ' <span class="na">该日无数据</span></td><td class="num">—</td>' +
           '<td class="num">—</td>' +
           (st.hasOi ? '<td class="num">—</td><td class="num">—</td>' : '') +
-          '<td class="num">—</td><td class="num">—</td></tr>';
+          '<td class="num">—</td><td class="num">—</td><td>—</td></tr>';
       }
       var name = esc(APP.EX_NAMES[r.ex] || r.ex) +
         (r.stale ? ' <span class="tag" title="该日无此源数据,显示其最近一个有数据日">数据: ' +
@@ -201,8 +213,43 @@
       }
       return cells +
         '<td class="num">' + shareCell(r.ex, r.stale) + '</td>' +
-        '<td class="num">' + (r.cur.count || 0) + '</td></tr>';
+        '<td class="num">' + (r.cur.count || 0) + '</td>' +
+        '<td>' + (r.stale ? '—' : rankCell(r.ex)) + '</td></tr>';
     }).join('');
+  };
+
+  APP.renderRankModal = function (st, exchange, metric) {
+    var effective = st.hasOi && metric === 'oi' ? 'oi' : 'vol';
+    var date = st.rankDate();
+    var rows = APP.exchangeRankings(st.rankDetail() || [], exchange, effective);
+    document.getElementById('rank-modal-title').textContent =
+      (APP.EX_NAMES[exchange] || exchange) + ' · ' + date + ' · ' +
+      (effective === 'oi' ? 'OI' : '成交额') + ' Top 20';
+    var volButton = document.getElementById('rank-metric-vol');
+    var oiButton = document.getElementById('rank-metric-oi');
+    oiButton.hidden = !st.hasOi;
+    [volButton, oiButton].forEach(function (button) {
+      var active = button.dataset.rankMetric === effective;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    document.querySelector('#rank-table thead').innerHTML =
+      '<tr><th class="num">排名</th><th>标的</th><th>类型</th>' +
+      '<th class="num">' + (effective === 'oi' ? '持仓 OI' : '日成交') +
+      '</th></tr>';
+    document.querySelector('#rank-table tbody').innerHTML = rows.map(function (row) {
+      return '<tr><td class="num">' + row.rank + '</td><td>' +
+        esc(row.ticker) + '</td><td><span class="tag">' +
+        esc(APP.TYPE_NAMES[row.asset_type] || row.asset_type) +
+        '</span></td><td class="num">' + fmtUsd(row.value) + '</td></tr>';
+    }).join('');
+    var tableWrap = document.getElementById('rank-table-wrap');
+    var empty = document.getElementById('rank-empty');
+    tableWrap.hidden = rows.length === 0;
+    empty.hidden = rows.length !== 0;
+    empty.textContent = effective === 'oi'
+      ? '该交易所当日暂无 OI 数据' : '该交易所当日暂无成交数据';
+    return effective;
   };
 
   APP.bestDepth = function (row, depthKey) {
