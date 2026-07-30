@@ -106,11 +106,12 @@
     var labels = rows.map(function (r) { return r.label; });
     var stacked = st.shareStack !== 'line';
     var percent = st.shareValue === 'percent';
+    var metric = APP.effectiveShareMetric(st);
     var raw = names.map(function (ex) {
       var agg = APP.aggregateShare(es[ex], st.granularity,
                                    st.block().meta.latest_date);
       var byLabel = {};
-      agg.forEach(function (r) { byLabel[r.label] = r.vol; });
+      agg.forEach(function (r) { byLabel[r.label] = r[metric]; });
       return labels.map(function (l) {
         var v = byLabel[l];
         return (v === undefined || v === null) ? null : v;
@@ -128,7 +129,7 @@
         return totals[idx] ? v / totals[idx] * 100 : 0;
       });
       return { name: APP.EX_NAMES[ex] || ex, type: 'line',
-               stack: stacked ? (percent ? 'share' : 'vol') : undefined,
+               stack: stacked ? (percent ? 'share' : metric) : undefined,
                areaStyle: stacked ? { opacity: .35 } : undefined,
                smooth: true, symbol: 'none',
                itemStyle: { color: APP.CHART_COLORS[i % APP.CHART_COLORS.length] },
@@ -137,10 +138,11 @@
     chart.setOption({
       animation: false,
       backgroundColor: dark.backgroundColor, textStyle: dark.textStyle,
-      tooltip: Object.assign({}, dark.tooltip, { valueFormatter: percent
-        ? function (v) { return v.toFixed(2) + '%'; } : fmtUsd }),
+      tooltip: Object.assign({}, dark.tooltip, { valueFormatter: function (v) {
+        return APP.fmtShareValue(v, percent);
+      } }),
       legend: { textStyle: { color: '#8b949e' } },
-      grid: { left: 60, right: 20, top: 34, bottom: 40 },
+      grid: { left: 60, right: 20, top: APP.shareGridTop(chart), bottom: 40 },
       xAxis: Object.assign({ type: 'category', data: labels }, axisStyle()),
       yAxis: Object.assign({ type: 'value', max: percent ? 100 : undefined },
                            axisStyle(percent ? function (v) { return v + '%'; }

@@ -12,6 +12,7 @@
     hasOi: true,
     granularity: 'day',
     detailMode: 'day',   // 明细表:day=日快照(联动日期框)| live=最新时点(4h)
+    shareMetric: 'vol',  // 份额图:vol=成交额(默认)| oi=持仓(仅 perp)
     shareStack: 'line',  // 份额图:line=独立折线(默认)| stack=堆叠
     shareValue: 'amount', // 份额图:amount=美元成交额(默认)| percent=时间桶占比
     depthKey: 'depth_l3_usd',
@@ -68,13 +69,22 @@
     function () { APP.renderShareChart(st, shareChart); }
   );
 
-  function syncShareValueMode() {
-    // 小时图保留既有金额口径；切回日级时不改 shareValue，恢复用户选择。
-    document.getElementById('share-value-mode').hidden = st.granularity === 'hour';
+  function syncShareControls() {
+    var metric = APP.effectiveShareMetric(st);
+    var metricMode = document.getElementById('share-metric-mode');
+    metricMode.querySelectorAll('button').forEach(function (button) {
+      var active = button.dataset.smetric === metric;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    document.getElementById('share-metric-oi').hidden = !st.hasOi;
+    // 小时成交保留既有金额口径；小时 OI 可使用金额/占比。
+    document.getElementById('share-value-mode').hidden =
+      st.granularity === 'hour' && metric !== 'oi';
   }
 
   function renderAll() {
-    syncShareValueMode();
+    syncShareControls();
     APP.renderFooterMeta(st);
     APP.renderHeader(st);
     APP.renderCards(st);
@@ -202,7 +212,7 @@
     this.querySelectorAll('button').forEach(function (b) {
       b.classList.toggle('active', b === btn);
     });
-    syncShareValueMode();
+    syncShareControls();
     APP.renderTotalChart(st, totalChart);
     APP.renderShareChart(st, shareChart);
   });
@@ -243,6 +253,15 @@
     if (current) current.focus();
   });
 
+  // ---- 份额图 成交额/OI 切换 ----
+  document.getElementById('share-metric-mode').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn || btn.hidden || st.shareMetric === btn.dataset.smetric) return;
+    st.shareMetric = btn.dataset.smetric;
+    syncShareControls();
+    scheduleShareRender();
+  });
+
   // ---- 份额图 堆叠/独立 切换 ----
   document.getElementById('share-mode').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
@@ -254,7 +273,7 @@
     scheduleShareRender();
   });
 
-  // ---- 份额图 金额/占比 切换(日/周/月专属;小时控件隐藏) ----
+  // ---- 份额图 金额/占比；小时成交专属隐藏，小时 OI 可切换 ----
   document.getElementById('share-value-mode').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn || st.shareValue === btn.dataset.sv) return;
@@ -340,6 +359,7 @@
 
   window.addEventListener('resize', function () {
     totalChart.resize(); shareChart.resize(); tradfiChart.resize();
+    scheduleShareRender();
     intradayOiChart.resize(); intradaySpreadChart.resize();
     if (modalChart) modalChart.resize();
     if (modalHourChart) modalHourChart.resize();

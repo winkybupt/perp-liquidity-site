@@ -136,6 +136,26 @@
     return schedule;
   };
 
+  // shareMetric 记住 Perp 用户选择；Spot 仅推导有效指标，不覆盖记忆态。
+  APP.effectiveShareMetric = function (st) {
+    return st.hasOi && st.shareMetric === 'oi' ? 'oi' : 'vol';
+  };
+
+  APP.shareGridTop = function (chart) {
+    // 窄屏七个交易所图例会换成两行，须给第二行留出绘图区外空间。
+    return chart.getWidth && chart.getWidth() <= 500 ? 64 : 34;
+  };
+
+  APP.fmtShareValue = function (value, percent) {
+    // ECharts 在 axis trigger 的全空时间桶会传 undefined 或 '-'。
+    if (value === null || value === undefined || value === '' || value === '-') {
+      return '—';
+    }
+    var number = Number(value);
+    if (!isFinite(number)) return '—';
+    return percent ? number.toFixed(2) + '%' : APP.fmtUsd(number);
+  };
+
   // 最多 7 槽:首页/末页/当前邻页固定可达,远处页用省略号压缩。
   APP.pageItems = function (currentPage, totalPages) {
     var total = Math.max(1, Math.floor(Number(totalPages)) || 1);
@@ -198,28 +218,36 @@
     });
   };
 
-  // 份额图的周/月聚合必须保留“全缺失”与“真实零”的区别；通用 aggregate
-  // 为总量图服务，会将缺失成交归零，不能复用。
+  // 份额图的周/月聚合必须保留“全缺失”与“真实零”的区别；成交为求和，
+  // OI 是时点量取有效日均值。通用 aggregate 会将缺失成交归零，不能复用。
   APP.aggregateShare = function (series, g, latestDate) {
     if (g === 'day') return series.map(function (x) {
-      return { label: x.date, vol: x.vol };
+      return { label: x.date, vol: x.vol, oi: x.oi };
     });
     var keyFn = g === 'week' ? isoWeekKey
                              : function (d) { return d.slice(0, 7); };
     var groups = {}, order = [];
     series.forEach(function (x) {
       var k = keyFn(x.date);
-      if (!groups[k]) { groups[k] = { vol: 0, hasVol: false }; order.push(k); }
+      if (!groups[k]) {
+        groups[k] = { vol: 0, hasVol: false, oi: 0, oiCount: 0 };
+        order.push(k);
+      }
       if (x.vol !== null && x.vol !== undefined) {
         groups[k].vol += x.vol;
         groups[k].hasVol = true;
+      }
+      if (x.oi !== null && x.oi !== undefined) {
+        groups[k].oi += x.oi;
+        groups[k].oiCount += 1;
       }
     });
     return order.map(function (k) {
       var gp = groups[k];
       var ongoing = periodEnd(k, g) > (latestDate || '');
       return { label: k + (ongoing ? '(进行中)' : ''),
-               vol: gp.hasVol ? gp.vol : null };
+               vol: gp.hasVol ? gp.vol : null,
+               oi: gp.oiCount ? gp.oi / gp.oiCount : null };
     });
   };
 })();

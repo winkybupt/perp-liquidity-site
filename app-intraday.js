@@ -33,30 +33,53 @@
   };
 
   APP.renderHourlyShare = function (st, chart) {
-    var m = market(st), hours = st.intraday().meta.hour_ts || [];
-    var names = Object.keys(m.vol_by_exchange || {});
+    var block = st.intraday(), m = market(st);
+    var metric = APP.effectiveShareMetric(st);
+    var oi = metric === 'oi';
+    var timestamps = (oi ? block.meta.grid_ts : block.meta.hour_ts) || [];
+    var byExchange = (oi ? m.oi_by_exchange : m.vol_by_exchange) || {};
+    var names = Object.keys(byExchange);
+    var stacked = st.shareStack !== 'line';
+    // 小时成交沿用既有金额口径；只有小时 OI 响应占比记忆态。
+    var percent = oi && st.shareValue === 'percent';
+    var raw = names.map(function (ex) {
+      var source = byExchange[ex] || [];
+      return timestamps.map(function (_, idx) {
+        var v = source[idx];
+        return v === undefined || v === null ? null : v;
+      });
+    });
+    var totals = timestamps.map(function (_, idx) {
+      return raw.reduce(function (sum, values) {
+        return values[idx] === null ? sum : sum + values[idx];
+      }, 0);
+    });
     chart.setOption({
       animation: false,
       backgroundColor: APP.darkTheme.backgroundColor,
       textStyle: APP.darkTheme.textStyle,
-      tooltip: Object.assign({}, APP.darkTheme.tooltip,
-                             { valueFormatter: fmtUsd }),
+      tooltip: Object.assign({}, APP.darkTheme.tooltip, { valueFormatter: function (v) {
+        return APP.fmtShareValue(v, percent);
+      } }),
       legend: { textStyle: { color: '#8b949e' } },
-      grid: { left: 60, right: 20, top: 34, bottom: 40 },
-      xAxis: Object.assign({ type: 'category', data: hours.map(shortTs) },
+      grid: { left: 60, right: 20, top: APP.shareGridTop(chart), bottom: 40 },
+      xAxis: Object.assign({ type: 'category', data: timestamps.map(shortTs) },
                            APP.axisStyle()),
-      yAxis: Object.assign({ type: 'value' }, APP.axisStyle(fmtUsd)),
+      yAxis: Object.assign({ type: 'value', max: percent ? 100 : undefined },
+                           APP.axisStyle(percent
+                             ? function (v) { return v + '%'; } : fmtUsd)),
       series: names.map(function (ex, i) {
-        var stacked = st.shareStack !== 'line';
+        var values = raw[i].map(function (v, idx) {
+          if (v === null) return stacked ? 0 : null;
+          if (!percent) return v;
+          return totals[idx] ? v / totals[idx] * 100 : 0;
+        });
         return { name: APP.EX_NAMES[ex] || ex, type: 'line',
-                 stack: stacked ? 'vol' : undefined,
+                 stack: stacked ? (percent ? 'share' : metric) : undefined,
                  areaStyle: stacked ? { opacity: .35 } : undefined,
-                 symbol: 'none',
+                 connectNulls: false, symbol: 'none',
                  itemStyle: { color: APP.CHART_COLORS[i % APP.CHART_COLORS.length] },
-                 data: (m.vol_by_exchange[ex] || []).map(function (v) {
-                   // 补 0 是堆叠的技术需要;独立模式缺时 null 自然断线
-                   return stacked ? (v === null ? 0 : v) : v;
-                 }) };
+                 data: values };
       }),
     }, true);
   };
