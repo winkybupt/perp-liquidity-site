@@ -83,6 +83,10 @@ tr.sub td:first-child { border-left: 2px solid var(--accent); }
 .tag { font-size: 11px; padding: 1px 8px; border-radius: 10px;
   border: 1px solid var(--border); color: var(--muted); }
 .na { color: #555; }
+.matrix-entry { display: flex; align-items: center; gap: 6px; }
+.matrix-new { padding: 2px 6px; border: 1px solid #ff6369; border-radius: 4px;
+  background: #da3633; color: #fff; font-size: 10px; font-weight: 700;
+  line-height: 1.2; }
 .matrix-open { border: 1px solid var(--border); background: var(--bg);
   color: var(--text); border-radius: 6px; padding: 5px 10px;
   cursor: pointer; font: inherit; }
