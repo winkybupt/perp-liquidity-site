@@ -83,10 +83,12 @@ tr.sub td:first-child { border-left: 2px solid var(--accent); }
 .tag { font-size: 11px; padding: 1px 8px; border-radius: 10px;
   border: 1px solid var(--border); color: var(--muted); }
 .na { color: #555; }
-.rank-open { border: 0; background: transparent; color: var(--accent);
+.matrix-open { border: 1px solid var(--border); background: var(--bg);
+  color: var(--text); border-radius: 6px; padding: 5px 10px;
   cursor: pointer; font: inherit; }
-.rank-open:hover { text-decoration: underline; }
-.rank-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.matrix-open:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.matrix-open:disabled { opacity: .4; cursor: default; }
+.matrix-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* 含RPI 内联对比:total 值高亮,改善量绿色 */
 .rpi { color: var(--accent); }
 .rpi-arrow { color: var(--muted); }
@@ -120,11 +122,58 @@ tr.sub td:first-child { border-left: 2px solid var(--accent); }
 #modal-close, #rank-modal-close { background: none; border: 0; color: var(--muted); font-size: 16px;
   cursor: pointer; min-width: 32px; min-height: 32px; display: grid;
   place-items: center; flex: none; }
-.rank-dialog { width: min(620px, 92vw); }
+.rank-dialog { width: min(1180px, 96vw); overflow: hidden; }
 .rank-controls { margin-bottom: 10px; }
-.rank-table-wrap { max-height: min(60vh, 520px); overflow: auto; }
+.matrix-toolbar { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; }
+.matrix-field { display: grid; gap: 3px; color: var(--muted); font-size: 11px; }
+.matrix-field input, .matrix-field select { height: 32px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+  padding: 4px 8px; font: inherit; }
+.matrix-field input { width: 150px; }
+.matrix-field select { min-width: 130px; }
+.matrix-mobile-exchanges { display: none; gap: 10px; margin-bottom: 10px; }
+.matrix-mobile-exchanges[hidden] { display: none; }
+.matrix-summary { min-height: 20px; margin-bottom: 6px; color: var(--muted);
+  font-size: 12px; }
+.rank-table-wrap { max-height: min(62vh, 560px); overflow: auto;
+  border: 1px solid var(--border); border-radius: 6px; }
+.rank-table-wrap table { width: max-content; min-width: 100%; }
+.rank-table-wrap th { z-index: 2; }
+.rank-table-wrap th:first-child, .rank-table-wrap td:first-child {
+  position: sticky; left: 0; min-width: 132px; background: var(--panel); z-index: 1;
+  box-shadow: 1px 0 0 var(--border); }
+.rank-table-wrap th:first-child { z-index: 3; }
+.rank-table-wrap tbody th.matrix-row-head { top: auto; color: inherit;
+  font-size: inherit; font-weight: inherit; z-index: 1; }
+.matrix-venue { min-width: 132px; text-align: right; }
+.matrix-cell { min-width: 132px; text-align: right; }
+.matrix-rank { display: block; color: var(--text); font-weight: 600; }
+.matrix-value { display: block; color: var(--muted); font-size: 11px; }
+.matrix-ticker { display: block; color: var(--text); font-weight: 600; }
+.matrix-type { display: block; color: var(--muted); font-size: 11px; }
+.matrix-missing { color: var(--muted); }
+.rank-tone-1 { background: rgba(63, 185, 80, .12); }
+.rank-tone-2 { background: rgba(88, 166, 255, .10); }
+.rank-tone-3 { background: rgba(210, 153, 34, .10); }
+.rank-tone-4 { background: rgba(139, 148, 158, .06); }
 .rank-table-wrap[hidden], .rank-empty[hidden] { display: none; }
 .rank-empty { color: var(--muted); padding: 28px 0; text-align: center; }
+
+@media (max-width: 719px) {
+  .rank-dialog { width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+    padding: 12px; }
+  .matrix-toolbar { align-items: stretch; }
+  .matrix-toolbar .matrix-field { flex: 1 1 130px; }
+  .matrix-field input, .matrix-field select { width: 100%; min-width: 0; }
+  .matrix-mobile-exchanges { display: grid; grid-template-columns: 1fr 1fr; }
+  .rank-table-wrap { max-height: calc(100vh - 300px); min-height: 180px; }
+  .matrix-venue, .matrix-cell { min-width: 118px; }
+  .rank-table-wrap th:first-child, .rank-table-wrap td:first-child {
+    width: 112px; min-width: 112px; max-width: 112px; white-space: normal;
+  }
+  .matrix-ticker { overflow-wrap: anywhere; }
+  .matrix-aux { display: none; }
+}
 
 footer { color: var(--muted); font-size: 12px; line-height: 1.8; }
 #warnings .warn-line { color: #d29922; }

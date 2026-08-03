@@ -21,6 +21,20 @@
   APP.axisStyle = axisStyle;
   APP.darkTheme = dark;
 
+  function matrixExchanges(st, detail) {
+    var seen = Object.create(null);
+    var exchanges = Object.keys(st.block().exchange_series || {});
+    exchanges.forEach(function (exchange) { seen[exchange] = true; });
+    (detail || []).forEach(function (row) {
+      (row.exchanges || []).forEach(function (venue) {
+        if (seen[venue.exchange]) return;
+        seen[venue.exchange] = true;
+        exchanges.push(venue.exchange);
+      });
+    });
+    return exchanges;
+  }
+
   APP.renderHeader = function (st) {
     var meta = st.block().meta;
     var snapTs = (st.intraday && st.intraday().meta.latest_snap_ts) || null;
@@ -159,23 +173,18 @@
       '<th class="num">环比</th>' +
       (st.hasOi ? '<th class="num">持仓 OI</th><th class="num">环比</th>' : '') +
       '<th class="num" title="该所 TradFi 成交占其全市场总量(含加密)的百分比;分母来自 CoinGecko">TradFi 占比</th>' +
-      '<th class="num">标的数</th><th>排行</th></tr>';
+      '<th class="num">标的数</th></tr>';
     var tbody = document.querySelector('#exchange-table tbody');
     var target = st.selectedDate || latest;
     var share = st.block().tradfi_share || { dates: [], by_exchange: {} };
     var shareIdx = share.dates.indexOf(target);
     var exactDetail = st.rankDetail();
-    function rankCell(ex) {
-      var available = exactDetail && exactDetail.some(function (row) {
-        return (row.exchanges || []).some(function (venue) {
-          return venue.exchange === ex;
-        });
-      });
-      return available
-        ? '<button type="button" class="rank-open" data-rank-exchange="' +
-          esc(ex) + '">查看 Top 20</button>'
-        : '—';
-    }
+    var entry = document.getElementById('rank-open');
+    var entryMatrix = exactDetail === null ? null : APP.buildExchangeMatrix(
+      exactDetail || [], matrixExchanges(st, exactDetail), 'vol');
+    entry.disabled = !entryMatrix || entryMatrix.exchanges.length === 0;
+    entry.title = entry.disabled ? '所选日期暂无可比较的成交排行' :
+      '比较各交易所 Top 20 标的';
     function shareCell(ex, stale) {
       if (stale || shareIdx === -1) return '—';
       var v = (share.by_exchange[ex] || [])[shareIdx];
@@ -199,7 +208,7 @@
           ' <span class="na">该日无数据</span></td><td class="num">—</td>' +
           '<td class="num">—</td>' +
           (st.hasOi ? '<td class="num">—</td><td class="num">—</td>' : '') +
-          '<td class="num">—</td><td class="num">—</td><td>—</td></tr>';
+          '<td class="num">—</td><td class="num">—</td></tr>';
       }
       var name = esc(APP.EX_NAMES[r.ex] || r.ex) +
         (r.stale ? ' <span class="tag" title="该日无此源数据,显示其最近一个有数据日">数据: ' +
@@ -213,18 +222,38 @@
       }
       return cells +
         '<td class="num">' + shareCell(r.ex, r.stale) + '</td>' +
-        '<td class="num">' + (r.cur.count || 0) + '</td>' +
-        '<td>' + (r.stale ? '—' : rankCell(r.ex)) + '</td></tr>';
+        '<td class="num">' + (r.cur.count || 0) + '</td></tr>';
     }).join('');
   };
 
-  APP.renderRankModal = function (st, exchange, metric) {
-    var effective = st.hasOi && metric === 'oi' ? 'oi' : 'vol';
+  APP.renderRankModal = function (st, state) {
+    var effective = st.hasOi && state.metric === 'oi' ? 'oi' : 'vol';
     var date = st.rankDate();
-    var rows = APP.exchangeRankings(st.rankDetail() || [], exchange, effective);
+    var detail = st.rankDetail() || [];
+    var matrix = APP.buildExchangeMatrix(
+      detail, matrixExchanges(st, detail), effective);
+    var mobile = !!state.mobile;
+    var selected = (state.mobileExchanges || []).filter(function (exchange, index, all) {
+      return matrix.exchanges.indexOf(exchange) !== -1 && all.indexOf(exchange) === index;
+    });
+    matrix.exchanges.forEach(function (exchange) {
+      if (selected.length < 2 && selected.indexOf(exchange) === -1) selected.push(exchange);
+    });
+    selected = selected.slice(0, 2);
+    var visible = mobile ? selected : matrix.exchanges.slice();
+    var minCoverage = Math.max(1, Number(state.minCoverage) || 1);
+    if (mobile) minCoverage = Math.min(minCoverage, Math.max(1, visible.length));
+    var sort = state.sort || 'total';
+    if (sort !== 'total' && sort !== 'coverage' && visible.indexOf(sort) === -1) {
+      sort = 'total';
+    }
+    var rows = APP.matrixView(matrix, visible, {
+      search: state.search, minCoverage: minCoverage, sort: sort
+    });
+    var market = st.hasOi ? 'Perp' : '现货';
     document.getElementById('rank-modal-title').textContent =
-      (APP.EX_NAMES[exchange] || exchange) + ' · ' + date + ' · ' +
-      (effective === 'oi' ? 'OI' : '成交额') + ' Top 20';
+      market + ' · ' + date + ' · ' +
+      (effective === 'oi' ? 'OI' : '成交额') + '标的矩阵';
     var volButton = document.getElementById('rank-metric-vol');
     var oiButton = document.getElementById('rank-metric-oi');
     oiButton.hidden = !st.hasOi;
@@ -233,23 +262,76 @@
       button.classList.toggle('active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
+    document.getElementById('rank-search').value = state.search || '';
+    document.querySelectorAll('[data-rank-coverage]').forEach(function (button) {
+      var value = Number(button.dataset.rankCoverage);
+      var active = value === minCoverage;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    document.getElementById('rank-coverage-three').hidden = mobile;
+    var sortSelect = document.getElementById('rank-sort');
+    sortSelect.innerHTML = '<option value="total">综合' +
+      (effective === 'oi' ? ' OI' : '成交额') + '</option>' +
+      '<option value="coverage">覆盖交易所数</option>' +
+      visible.map(function (exchange) {
+        return '<option value="' + esc(exchange) + '">' +
+          esc(APP.EX_NAMES[exchange] || exchange) + '</option>';
+      }).join('');
+    sortSelect.value = sort;
+    var mobileBox = document.getElementById('rank-mobile-exchanges');
+    mobileBox.hidden = !mobile;
+    ['a', 'b'].forEach(function (slot, index) {
+      var select = document.getElementById('rank-exchange-' + slot);
+      var options = matrix.exchanges.length
+        ? matrix.exchanges.map(function (exchange) {
+          return '<option value="' + esc(exchange) + '">' +
+            esc(APP.EX_NAMES[exchange] || exchange) + '</option>';
+        }).join('') : '<option value="">暂无交易所</option>';
+      if (index >= matrix.exchanges.length && matrix.exchanges.length) {
+        options += '<option value="">暂无第二家交易所</option>';
+      }
+      select.innerHTML = options;
+      select.disabled = index >= matrix.exchanges.length;
+      select.value = selected[index] || '';
+    });
     document.querySelector('#rank-table thead').innerHTML =
-      '<tr><th class="num">排名</th><th>标的</th><th>类型</th>' +
-      '<th class="num">' + (effective === 'oi' ? '持仓 OI' : '日成交') +
-      '</th></tr>';
+      '<tr><th>标的</th>' + visible.map(function (exchange) {
+        return '<th class="matrix-venue">' + esc(APP.EX_NAMES[exchange] || exchange) +
+          '</th>';
+      }).join('') + '<th class="num matrix-aux">覆盖</th>' +
+      '<th class="num matrix-aux">合计</th></tr>';
     document.querySelector('#rank-table tbody').innerHTML = rows.map(function (row) {
-      return '<tr><td class="num">' + row.rank + '</td><td>' +
-        esc(row.ticker) + '</td><td><span class="tag">' +
-        esc(APP.TYPE_NAMES[row.asset_type] || row.asset_type) +
-        '</span></td><td class="num">' + fmtUsd(row.value) + '</td></tr>';
+      return '<tr><th scope="row" class="matrix-row-head"><span class="matrix-ticker">' +
+        esc(row.ticker) + '</span><span class="matrix-type">' +
+        esc(APP.TYPE_NAMES[row.asset_type] || row.asset_type) + '</span></th>' +
+        visible.map(function (exchange) {
+          var cell = row.cells[exchange];
+          if (!cell) return '<td class="matrix-cell matrix-missing">—</td>';
+          var tone = Math.min(4, Math.ceil(cell.rank / 5));
+          var label = (APP.EX_NAMES[exchange] || exchange) + ' 第 ' + cell.rank +
+            ' 名，' + (effective === 'oi' ? 'OI ' : '成交额 ') + fmtUsd(cell.value);
+          return '<td class="matrix-cell rank-tone-' + tone + '" aria-label="' +
+            esc(label) + '"><span class="matrix-rank">#' + cell.rank +
+            '</span><span class="matrix-value">' + fmtUsd(cell.value) +
+            '</span></td>';
+        }).join('') + '<td class="num matrix-aux">' + row.coverage + '/' +
+        visible.length + '</td><td class="num matrix-aux">' +
+        fmtUsd(row.total) + '</td></tr>';
     }).join('');
     var tableWrap = document.getElementById('rank-table-wrap');
     var empty = document.getElementById('rank-empty');
     tableWrap.hidden = rows.length === 0;
     empty.hidden = rows.length !== 0;
-    empty.textContent = effective === 'oi'
-      ? '该交易所当日暂无 OI 数据' : '该交易所当日暂无成交数据';
-    return effective;
+    empty.textContent = matrix.exchanges.length === 0
+      ? '所选日期暂无' + (effective === 'oi' ? ' OI ' : '成交额') + '排行数据'
+      : '没有符合当前条件的标的';
+    document.getElementById('rank-summary').textContent =
+      rows.length + ' 个标的 · ' + visible.length + ' 家交易所';
+    return { metric: effective, search: state.search || '',
+      minCoverage: minCoverage, sort: sort, mobile: mobile,
+      mobileExchanges: selected, availableExchanges: matrix.exchanges,
+      visibleExchanges: visible };
   };
 
   APP.bestDepth = function (row, depthKey) {

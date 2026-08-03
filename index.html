@@ -67,7 +67,11 @@
 </section>
 
 <section class="panel">
-  <div class="panel-head"><h2>数据源拆分(所选快照日) <span class="freq-tag daily">每日更新</span></h2></div>
+  <div class="panel-head">
+    <h2>数据源拆分(所选快照日) <span class="freq-tag daily">每日更新</span></h2>
+    <button type="button" class="matrix-open" id="rank-open"
+            aria-haspopup="dialog" disabled>标的矩阵</button>
+  </div>
   <div class="table-wrap"><table id="exchange-table">
     <thead></thead>
     <tbody></tbody>
@@ -133,16 +137,39 @@
       <h3 id="rank-modal-title"></h3>
       <button type="button" id="rank-modal-close" aria-label="关闭排行弹窗">✕</button>
     </div>
-    <div class="rank-controls">
+    <div class="rank-controls matrix-toolbar">
       <span class="toggle" id="rank-metric-mode" role="group" aria-label="排行指标">
         <button type="button" id="rank-metric-vol" data-rank-metric="vol"
                 class="active" aria-pressed="true">成交额</button>
         <button type="button" id="rank-metric-oi" data-rank-metric="oi"
                 aria-pressed="false">OI</button>
       </span>
+      <label class="matrix-field">
+        <span>标的</span>
+        <input type="search" id="rank-search" placeholder="搜索标的"
+               autocomplete="off">
+      </label>
+      <span class="toggle" id="rank-coverage-mode" role="group"
+            aria-label="覆盖交易所数量">
+        <button type="button" data-rank-coverage="1" class="active"
+                aria-pressed="true">全部</button>
+        <button type="button" data-rank-coverage="2"
+                aria-pressed="false">2 家+</button>
+        <button type="button" id="rank-coverage-three" data-rank-coverage="3"
+                aria-pressed="false">3 家+</button>
+      </span>
+      <label class="matrix-field">
+        <span>排序</span>
+        <select id="rank-sort"></select>
+      </label>
     </div>
+    <div class="matrix-mobile-exchanges" id="rank-mobile-exchanges" hidden>
+      <label class="matrix-field"><span>交易所 A</span><select id="rank-exchange-a"></select></label>
+      <label class="matrix-field"><span>交易所 B</span><select id="rank-exchange-b"></select></label>
+    </div>
+    <div class="matrix-summary" id="rank-summary" aria-live="polite"></div>
     <div class="table-wrap rank-table-wrap" id="rank-table-wrap" tabindex="0"
-         aria-label="排行表格，可滚动">
+         aria-label="跨交易所标的排行矩阵，可滚动">
       <table id="rank-table"><thead></thead><tbody></tbody></table>
     </div>
     <p class="rank-empty" id="rank-empty" hidden></p>

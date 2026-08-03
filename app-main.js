@@ -73,9 +73,10 @@
   var modalHourChart = null;
   var modalFundingChart = null;
   var modalTicker = null;   // 弹窗打开中的标的(切片迟到时补渲小时图)
-  var rankExchange = null;
-  var rankMetric = 'vol';
+  var rankState = null;
   var rankTrigger = null;
+  var rankFocusPending = null;
+  var rankFocusFallback = null;
   var rankInertElements = [];
   var scheduleShareRender = APP.createFrameScheduler(
     function (callback) { window.requestAnimationFrame(callback); },
@@ -107,6 +108,7 @@
     APP.renderIntradayPanel(st, intradayOiChart, intradaySpreadChart);
     APP.renderExchangeTable(st);
     APP.renderTickerTable(st);
+    restoreRankFocus();
   }
   function resetDetailPage() { st.detailPage = 1; }
 
@@ -186,7 +188,7 @@
     document.body.appendChild(tag);
   }
   function loadDay(date) {
-    closeRankModal();
+    closeRankModal(datePick);
     resetDetailPage();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
         || allDates.indexOf(date) === -1) {
@@ -205,7 +207,7 @@
   document.getElementById('mode-tabs').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
-    closeRankModal();
+    closeRankModal(btn);
     st.mode = btn.dataset.mode;
     resetDetailPage();
     st.hasOi = st.mode === 'perp';
@@ -272,16 +274,38 @@
     if (current) current.focus();
   });
 
-  // ---- 数据源拆分 Top 20 ----
-  document.querySelector('#exchange-table tbody').addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-rank-exchange]');
-    if (!btn) return;
-    openRankModal(btn.dataset.rankExchange, btn);
+  // ---- 数据源拆分 Top 20 矩阵 ----
+  document.getElementById('rank-open').addEventListener('click', function () {
+    if (!this.disabled) openRankModal(this);
   });
   document.getElementById('rank-metric-mode').addEventListener('click', function (e) {
     var btn = e.target.closest('button[data-rank-metric]');
-    if (!btn || btn.hidden || !rankExchange) return;
-    rankMetric = APP.renderRankModal(st, rankExchange, btn.dataset.rankMetric);
+    if (!btn || btn.hidden || !rankState) return;
+    rankState.metric = btn.dataset.rankMetric;
+    rankState = APP.renderRankModal(st, rankState);
+  });
+  document.getElementById('rank-coverage-mode').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-rank-coverage]');
+    if (!btn || btn.hidden || !rankState) return;
+    rankState.minCoverage = Number(btn.dataset.rankCoverage);
+    rankState = APP.renderRankModal(st, rankState);
+  });
+  document.getElementById('rank-search').addEventListener('input', function () {
+    if (!rankState) return;
+    rankState.search = this.value;
+    rankState = APP.renderRankModal(st, rankState);
+  });
+  document.getElementById('rank-sort').addEventListener('change', function () {
+    if (!rankState) return;
+    rankState.sort = this.value;
+    rankState = APP.renderRankModal(st, rankState);
+  });
+  ['a', 'b'].forEach(function (slot, index) {
+    document.getElementById('rank-exchange-' + slot).addEventListener('change', function () {
+      if (!rankState) return;
+      rankState.mobileExchanges[index] = this.value;
+      rankState = APP.renderRankModal(st, rankState);
+    });
   });
 
   // ---- 份额图 成交额/OI 切换 ----
@@ -385,24 +409,45 @@
       first.focus();
     }
   }
-  function openRankModal(exchange, trigger) {
+  function rankIsMobile() { return window.innerWidth < 720; }
+  function openRankModal(trigger) {
     closeModal();
-    rankExchange = exchange;
-    rankMetric = 'vol';
+    rankFocusPending = null;
+    rankFocusFallback = null;
     rankTrigger = trigger;
+    rankState = { metric: 'vol', search: '', minCoverage: 1,
+      sort: 'total', mobile: rankIsMobile(), mobileExchanges: [] };
     document.getElementById('rank-modal').hidden = false;
     setRankBackgroundInert(true);
-    APP.renderRankModal(st, rankExchange, rankMetric);
+    rankState = APP.renderRankModal(st, rankState);
     document.getElementById('rank-modal-close').focus();
   }
-  function closeRankModal() {
+  function closeRankModal(fallback) {
     var modal = document.getElementById('rank-modal');
     if (modal.hidden) return;
     modal.hidden = true;
-    rankExchange = null;
+    rankState = null;
     setRankBackgroundInert(false);
-    if (rankTrigger) rankTrigger.focus();
+    var trigger = rankTrigger;
     rankTrigger = null;
+    // 历史切片加载时入口暂时 disabled；等后续 renderAll 重新启用后再恢复。
+    rankFocusPending = trigger;
+    rankFocusFallback = fallback || null;
+    if (trigger) setTimeout(restoreRankFocus, 0);
+  }
+  function restoreRankFocus() {
+    if (!rankFocusPending) return;
+    if (rankFocusPending.disabled) {
+      // 历史切片尚在加载时继续等待；确定无入口后回到上下文切换控件。
+      if (st.selectedDate && !dayCache[st.selectedDate]) return;
+      if (rankFocusFallback && !rankFocusFallback.disabled) {
+        rankFocusFallback.focus();
+      }
+    } else {
+      rankFocusPending.focus();
+    }
+    rankFocusPending = null;
+    rankFocusFallback = null;
   }
   document.getElementById('rank-modal-close').addEventListener('click', closeRankModal);
   document.getElementById('rank-modal').addEventListener('click', function (e) {
@@ -460,6 +505,10 @@
     if (modalChart) modalChart.resize();
     if (modalHourChart) modalHourChart.resize();
     if (modalFundingChart) modalFundingChart.resize();
+    if (rankState && rankState.mobile !== rankIsMobile()) {
+      rankState.mobile = rankIsMobile();
+      rankState = APP.renderRankModal(st, rankState);
+    }
   });
 
   // ---- 深度明细 CSV 下载(docs/depth-export) ----

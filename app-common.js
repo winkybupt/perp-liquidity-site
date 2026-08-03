@@ -139,6 +139,79 @@
       });
   };
 
+  APP.buildExchangeMatrix = function (detail, exchanges, metric, rankingFn) {
+    var effective = metric === 'oi' ? 'oi' : 'vol';
+    var ranker = rankingFn || APP.exchangeRankings;
+    var totals = Object.create(null);
+    var byTicker = Object.create(null);
+    var available = [];
+    (exchanges || []).forEach(function (exchange) {
+      var rankings = ranker(detail || [], exchange, effective);
+      if (!rankings.length) return;
+      available.push(exchange);
+      totals[exchange] = rankings.reduce(function (sum, row) {
+        return sum + row.value;
+      }, 0);
+      rankings.forEach(function (row) {
+        if (!byTicker[row.ticker]) {
+          byTicker[row.ticker] = { ticker: row.ticker,
+            asset_type: row.asset_type, cells: Object.create(null) };
+        }
+        byTicker[row.ticker].cells[exchange] =
+          { rank: row.rank, value: row.value };
+      });
+    });
+    available.sort(function (a, b) {
+      if (totals[a] !== totals[b]) return totals[b] - totals[a];
+      var an = APP.EX_NAMES[a] || a, bn = APP.EX_NAMES[b] || b;
+      return an < bn ? -1 : an > bn ? 1 : 0;
+    });
+    return { metric: effective, exchanges: available,
+      totals: totals,
+      rows: Object.keys(byTicker).map(function (ticker) { return byTicker[ticker]; }) };
+  };
+
+  APP.matrixView = function (matrix, visibleExchanges, options) {
+    var opts = options || {};
+    var available = matrix ? matrix.exchanges : [];
+    var seen = Object.create(null);
+    var visible = (visibleExchanges || available).filter(function (exchange) {
+      if (available.indexOf(exchange) === -1 || seen[exchange]) return false;
+      seen[exchange] = true;
+      return true;
+    });
+    var search = String(opts.search || '').trim().toUpperCase();
+    var minCoverage = Math.max(1, Math.floor(Number(opts.minCoverage)) || 1);
+    var sort = opts.sort || 'total';
+    var rows = (matrix ? matrix.rows : []).map(function (row) {
+      var cells = Object.create(null), coverage = 0, total = 0;
+      visible.forEach(function (exchange) {
+        var cell = row.cells[exchange];
+        if (!cell) return;
+        cells[exchange] = { rank: cell.rank, value: cell.value };
+        coverage += 1;
+        total += cell.value;
+      });
+      if (!coverage || coverage < minCoverage ||
+          (search && row.ticker.toUpperCase().indexOf(search) === -1)) return null;
+      return { ticker: row.ticker, asset_type: row.asset_type,
+        cells: cells, coverage: coverage, total: total };
+    }).filter(function (row) { return row !== null; });
+    rows.sort(function (a, b) {
+      if (visible.indexOf(sort) !== -1) {
+        var ac = a.cells[sort], bc = b.cells[sort];
+        if (!!ac !== !!bc) return ac ? -1 : 1;
+        if (ac && ac.value !== bc.value) return bc.value - ac.value;
+      } else if (sort === 'coverage' && a.coverage !== b.coverage) {
+        return b.coverage - a.coverage;
+      }
+      if (a.total !== b.total) return b.total - a.total;
+      if (a.coverage !== b.coverage) return b.coverage - a.coverage;
+      return a.ticker < b.ticker ? -1 : a.ticker > b.ticker ? 1 : 0;
+    });
+    return rows;
+  };
+
   // 高频 UI 更新合并到下一绘制帧；回调执行中再次请求时保留下一帧，
   // 避免 pending 标记的清理时机吞掉重入更新。
   APP.createFrameScheduler = function (requestFrame, callback) {
